@@ -1,0 +1,2 @@
+# MiraBit
+Freedom through Bitcoin
