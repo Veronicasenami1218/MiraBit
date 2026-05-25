@@ -1,0 +1,17 @@
+{
+  "name": "MiraBit — Student Bitcoin Wallet",
+  "short_name": "MiraBit",
+  "description": "Save with Naira or USDT, convert to Bitcoin, pay with QR codes, and learn the basics.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
