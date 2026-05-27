@@ -47,15 +47,18 @@ const createInvoice = async ({ amountSats, description, expirySeconds, payeePubk
 
   // Log as a pending incoming transaction (status flips to "complete" when paid)
   if (payeePubkey) {
+    const amountBtc = amountSats / 1e8;
     await logTransaction({
       pubkey:      payeePubkey.toLowerCase(),
-      reference,
-      direction:   'incoming',
-      type:        'invoice',
+      type:        'receive',
       status:      'pending',
-      amountSats,
-      description,
-      invoice:     result.destination,
+      fromCurrency: null,
+      fromAmount:   0,
+      toCurrency:   'BTC',
+      toAmount:     amountBtc,
+      note:         description,
+      invoice:      result.destination,
+      metadata:     { reference },
     });
   }
 
@@ -76,9 +79,10 @@ const createInvoice = async ({ amountSats, description, expirySeconds, payeePubk
  * @param {string} params.invoice     – BOLT-11 string
  * @param {number} [params.amountSats] – for 0-amount invoices
  * @param {string} params.payerPubkey  – NIP-98 verified pubkey
+ * @param {boolean} [params.skipLog]   – set true when caller will write its own Transaction
  * @returns {Promise<object>}
  */
-const payInvoice = async ({ invoice, amountSats, payerPubkey }) => {
+const payInvoice = async ({ invoice, amountSats, payerPubkey, skipLog = false }) => {
   logger.info(`Paying invoice – payer: ${payerPubkey}`);
 
   const result = await breezService.sendPayment({ invoice, amountSats });
@@ -92,14 +96,18 @@ const payInvoice = async ({ invoice, amountSats, payerPubkey }) => {
     paidAt:       new Date().toISOString(),
   };
 
-  if (payerPubkey) {
+  if (payerPubkey && !skipLog) {
+    // Convert sats → BTC for the Transaction schema (FE shape)
+    const amountBtc = (payment.amountSats || 0) / 1e8;
     await logTransaction({
       pubkey:      payerPubkey.toLowerCase(),
       paymentHash: payment.paymentHash,
-      direction:   'outgoing',
-      type:        'invoice',
-      status:      payment.status,
-      amountSats:  payment.amountSats,
+      type:        'pay',
+      status:      payment.status === 'complete' ? 'completed' : 'pending',
+      fromCurrency: 'BTC',
+      fromAmount:   amountBtc,
+      toCurrency:   'BTC',
+      toAmount:     amountBtc,
       feeSats:     payment.feeSats,
       invoice,
       settledAt:   payment.status === 'complete' ? new Date() : null,
@@ -143,7 +151,7 @@ const getPaymentStatus = async (paymentHash) => {
  * @param {string} params.payerPubkey
  * @returns {Promise<object>}
  */
-const lnurlPay = async ({ lnurl, amountSats, payerPubkey }) => {
+const lnurlPay = async ({ lnurl, amountSats, payerPubkey, skipLog = false }) => {
   logger.info(`LNURL pay – ${amountSats} sats – payer: ${payerPubkey}`);
 
   // Breez SDK handles LNURL resolution internally when passed as destination
@@ -158,16 +166,20 @@ const lnurlPay = async ({ lnurl, amountSats, payerPubkey }) => {
     paidAt:      new Date().toISOString(),
   };
 
-  if (payerPubkey) {
+  if (payerPubkey && !skipLog) {
+    const amountBtc = (payment.amountSats || 0) / 1e8;
     await logTransaction({
       pubkey:      payerPubkey.toLowerCase(),
       paymentHash: result.payment?.paymentHash || null,
-      direction:   'outgoing',
-      type:        'lnurl',
-      status:      payment.status,
-      amountSats:  payment.amountSats,
+      type:        'pay',
+      status:      payment.status === 'complete' ? 'completed' : 'pending',
+      fromCurrency: 'BTC',
+      fromAmount:   amountBtc,
+      toCurrency:   'BTC',
+      toAmount:     amountBtc,
       feeSats:     payment.feeSats,
       invoice:     lnurl,
+      metadata:    { lnurl: true },
       settledAt:   payment.status === 'complete' ? new Date() : null,
     });
   }

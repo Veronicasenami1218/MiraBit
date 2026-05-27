@@ -13,9 +13,11 @@ const cors       = require('cors');
 const hpp        = require('hpp');
 const compression = require('compression');
 const morgan     = require('morgan');
+const swaggerUi  = require('swagger-ui-express');
 
 const config         = require('./config');
 const routes         = require('./routes');
+const swaggerSpec    = require('./docs/swagger');
 const errorHandler   = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const requestLogger  = require('./middleware/requestLogger');
@@ -27,7 +29,12 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ── Security Headers (Helmet) ─────────────────────────────────────────────────
-app.use(helmet());
+// Allow Swagger UI's inline styles & scripts on the /docs page only.
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Swagger UI ships inline assets; relax CSP
+  })
+);
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = config.allowedOrigins;
@@ -67,6 +74,21 @@ app.use(requestLogger);
 // ── Global Rate Limiter ───────────────────────────────────────────────────────
 app.use(`/api/${config.apiVersion}`, apiLimiter);
 
+// ── Swagger / OpenAPI Documentation ──────────────────────────────────────────
+// Interactive UI at /api/v1/docs, raw spec at /api/v1/docs.json
+const docsBase = `/api/${config.apiVersion}/docs`;
+app.get(`${docsBase}.json`, (req, res) => res.json(swaggerSpec));
+app.use(docsBase, swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'MiraBit API Docs',
+  customCss: '.topbar { display: none }',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+  },
+}));
+// Convenience redirect: /docs → /api/v1/docs
+app.get('/docs', (req, res) => res.redirect(docsBase));
+
 // ── API Routes ────────────────────────────────────────────────────────────────
 app.use(`/api/${config.apiVersion}`, routes);
 
@@ -76,7 +98,8 @@ app.get('/', (req, res) => {
     service: 'MiraBit Backend',
     status:  'online',
     version: config.apiVersion,
-    docs:    `/api/${config.apiVersion}/health`,
+    docs:    docsBase,
+    health:  `/api/${config.apiVersion}/health`,
   });
 });
 

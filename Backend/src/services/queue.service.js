@@ -225,18 +225,21 @@ const settleClaimed = async (item) => {
       );
     }
 
-    // Actually pay via Lightning service
+    // Actually pay via Lightning service. We pass skipLog:true because we
+    // write a richer Transaction ourselves below (with the queue context).
     const payment =
       item.recipientType === 'invoice'
         ? await lightningService.payInvoice({
             invoice:     item.recipient,
             amountSats,
             payerPubkey: pubkey,
+            skipLog:     true,
           })
         : await lightningService.lnurlPay({
             lnurl:       item.recipient,
             amountSats,
             payerPubkey: pubkey,
+            skipLog:     true,
           });
 
     // Debit source currency atomically with a conditional update

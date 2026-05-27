@@ -11,11 +11,12 @@ const { createLogger, format, transports } = require('winston');
 const path = require('path');
 const fs   = require('fs');
 
-const logDir  = process.env.LOG_DIR || './logs';
+const logDir   = process.env.LOG_DIR || './logs';
 const logLevel = process.env.LOG_LEVEL || 'debug';
+const silent   = logLevel === 'silent' || process.env.NODE_ENV === 'test';
 
-// Ensure logs directory exists
-if (!fs.existsSync(logDir)) {
+// Ensure logs directory exists (unless silenced)
+if (!silent && !fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
 
@@ -41,25 +42,28 @@ const fileFormat = combine(
 );
 
 const logger = createLogger({
-  level: logLevel,
+  level:  silent ? 'error' : logLevel,
+  silent, // when true, NO transport emits any log
   defaultMeta: { service: 'mirabit-backend' },
-  transports: [
-    // Error-only file
-    new transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level:    'error',
-      format:   fileFormat,
-    }),
-    // Combined log
-    new transports.File({
-      filename: path.join(logDir, 'combined.log'),
-      format:   fileFormat,
-    }),
-  ],
+  transports: silent
+    ? [new transports.Console({ silent: true })]
+    : [
+        // Error-only file
+        new transports.File({
+          filename: path.join(logDir, 'error.log'),
+          level:    'error',
+          format:   fileFormat,
+        }),
+        // Combined log
+        new transports.File({
+          filename: path.join(logDir, 'combined.log'),
+          format:   fileFormat,
+        }),
+      ],
 });
 
-// Add colorised console in non-production environments
-if (process.env.NODE_ENV !== 'production') {
+// Add colorised console in non-production, non-silent environments
+if (!silent && process.env.NODE_ENV !== 'production') {
   logger.add(new transports.Console({ format: consoleFormat }));
 }
 
