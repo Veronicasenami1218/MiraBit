@@ -421,14 +421,6 @@ export default function Landing() {
             <Link to="/app/learn" className="hover:text-foreground">
               Learn
             </Link>
-            <a
-              href="https://shakespeare.diy"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground"
-            >
-              Vibed with Shakespeare
-            </a>
           </div>
         </div>
       </footer>
