@@ -92,7 +92,7 @@ function SendPanel() {
   const ngnEq = num > 0 ? convert(num, "BTC", "NGN", rates) : 0;
   const canSend = num > 0 && recipient.trim().length > 4 && (isOnline ? num <= wallet.BTC : true);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!canSend) {
       toast({
         title: "Can't send",
@@ -106,7 +106,7 @@ function SendPanel() {
       return;
     }
     try {
-      const tx = payBtc(num, recipient, isOnline, note || undefined);
+      const tx = await payBtc(num, recipient, isOnline, note || undefined);
       if (tx.status === "queued") {
         toast({
           title: "Payment queued",

@@ -1,9 +1,20 @@
+// src/hooks/useRates.ts — Exchange rates with three-tier fallback
+//
+//   1. Backend  /conversion/rates/fe   (when VITE_API_BASE_URL is set)
+//   2. Direct public APIs via proxy    (when backend is unreachable)
+//   3. LocalStorage cached snapshot    (kept fresh by any of the above)
+//   4. FALLBACK_RATES from mirabit.ts  (true offline, first visit)
+//
+// The public return shape `{ rates }` is preserved so existing components
+// (BalanceCard, ConvertPage, PayPage, SavingsPage) don't have to change.
+
 import { useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { FALLBACK_RATES } from "@/lib/mirabit";
+import { apiFetch, isApiConfigured } from "@/lib/api";
 
 const RATES_KEY = "mirabit:rates:v1";
-const ONE_HOUR = 1000 * 60 * 60;
+const ONE_HOUR  = 1000 * 60 * 60;
 
 interface RatesState {
   BTC_USD: number;
@@ -15,70 +26,98 @@ interface RatesState {
 }
 
 const DEFAULT_RATES: RatesState = {
-  BTC_USD: FALLBACK_RATES.BTC_USD,
-  USD_NGN: FALLBACK_RATES.USD_NGN,
+  BTC_USD:   FALLBACK_RATES.BTC_USD,
+  USD_NGN:   FALLBACK_RATES.USD_NGN,
   updatedAt: 0,
-  isStale: true,
+  isStale:   true,
 };
 
+async function fetchFromBackend(signal: AbortSignal): Promise<Partial<RatesState> | null> {
+  if (!isApiConfigured()) return null;
+  try {
+    const data = await apiFetch<RatesState>("/conversion/rates/fe", { signal });
+    if (
+      typeof data?.BTC_USD === "number" && data.BTC_USD > 0 &&
+      typeof data?.USD_NGN === "number" && data.USD_NGN > 0
+    ) {
+      return data;
+    }
+  } catch {
+    // backend offline / not deployed yet → try direct fetch next
+  }
+  return null;
+}
+
+async function fetchFromProxy(signal: AbortSignal): Promise<Partial<RatesState> | null> {
+  const proxied = (u: string) =>
+    `https://proxy.shakespeare.diy/?url=${encodeURIComponent(u)}`;
+
+  let btcUsd: number | undefined;
+  let usdNgn: number | undefined;
+
+  try {
+    const btcRes = await fetch(
+      proxied("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"),
+      { signal },
+    );
+    const btcJson = (await btcRes.json()) as { bitcoin?: { usd?: number } };
+    btcUsd = btcJson?.bitcoin?.usd;
+  } catch { /* ignore */ }
+
+  try {
+    const fxRes = await fetch(proxied("https://open.er-api.com/v6/latest/USD"), { signal });
+    const fxJson = (await fxRes.json()) as { rates?: { NGN?: number } };
+    usdNgn = fxJson?.rates?.NGN;
+  } catch { /* ignore */ }
+
+  if (typeof btcUsd === "number" || typeof usdNgn === "number") {
+    return {
+      BTC_USD: typeof btcUsd === "number" && btcUsd > 0 ? btcUsd : undefined,
+      USD_NGN: typeof usdNgn === "number" && usdNgn > 0 ? usdNgn : undefined,
+    };
+  }
+  return null;
+}
+
 /**
- * Provides exchange rates for BTC/USD and USD/NGN.
+ * Provides exchange rates for BTC/USD and USD/NGN with smart fallback.
  *
- * The MVP gracefully falls back to bundled reference rates if no network is
- * available — this is intentional, since "offline mode" is a core feature.
- * When a live fetch succeeds, the rates are cached in localStorage.
+ * Network strategy:
+ *   1. Hit backend if configured (also caches server-side).
+ *   2. Otherwise try direct public APIs through the proxy.
+ *   3. Fall back to whatever is in localStorage.
+ *   4. If that's empty too, use the bundled FALLBACK_RATES.
+ *
+ * Either way, the rates are persisted to localStorage so true-offline
+ * sessions still get reasonable numbers.
  */
 export function useRates() {
   const [rates, setRates] = useLocalStorage<RatesState>(RATES_KEY, DEFAULT_RATES);
 
   useEffect(() => {
-    // Throttle: don't refetch more than once per hour.
+    // Throttle: don't refetch more than once per hour
     if (Date.now() - rates.updatedAt < ONE_HOUR) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
 
     const controller = new AbortController();
 
     (async () => {
-      try {
-        const proxied = (u: string) =>
-          `https://proxy.shakespeare.diy/?url=${encodeURIComponent(u)}`;
+      const fresh =
+        (await fetchFromBackend(controller.signal)) ??
+        (await fetchFromProxy(controller.signal));
 
-        // BTC/USD from CoinGecko (free, no key).
-        const btcRes = await fetch(
-          proxied("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"),
-          { signal: controller.signal },
-        );
-        const btcJson = (await btcRes.json()) as { bitcoin?: { usd?: number } };
-        const btcUsd = btcJson?.bitcoin?.usd;
+      if (!fresh) return; // keep cached / fallback
 
-        // USD/NGN from a free FX endpoint with a couple of fallbacks.
-        let usdNgn: number | undefined;
-        try {
-          const fxRes = await fetch(
-            proxied("https://open.er-api.com/v6/latest/USD"),
-            { signal: controller.signal },
-          );
-          const fxJson = (await fxRes.json()) as { rates?: { NGN?: number } };
-          usdNgn = fxJson?.rates?.NGN;
-        } catch {
-          // ignore — keep cached value
-        }
-
-        if (typeof btcUsd === "number" || typeof usdNgn === "number") {
-          setRates((prev) => ({
-            BTC_USD: typeof btcUsd === "number" && btcUsd > 0 ? btcUsd : prev.BTC_USD,
-            USD_NGN: typeof usdNgn === "number" && usdNgn > 0 ? usdNgn : prev.USD_NGN,
-            updatedAt: Date.now(),
-            isStale: false,
-          }));
-        }
-      } catch {
-        // Offline or network error — silently keep cached / fallback rates.
-      }
+      setRates((prev) => ({
+        BTC_USD:   fresh.BTC_USD   ?? prev.BTC_USD,
+        USD_NGN:   fresh.USD_NGN   ?? prev.USD_NGN,
+        updatedAt: fresh.updatedAt ?? Date.now(),
+        isStale:   false,
+      }));
     })();
 
     return () => controller.abort();
-    // We deliberately only run once at mount; rates have their own TTL.
+    // Run once at mount; rates have their own TTL.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

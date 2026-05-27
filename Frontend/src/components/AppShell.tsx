@@ -23,10 +23,10 @@ import { useState } from "react";
 
 const NAV_ITEMS = [
   { to: "/app", label: "Home", icon: Home, exact: true },
-  { to: "/app/savings", label: "Savings", icon: PiggyBank },
-  { to: "/app/convert", label: "Convert", icon: ArrowLeftRight },
-  { to: "/app/pay", label: "Pay", icon: QrCode },
-  { to: "/app/learn", label: "Learn", icon: GraduationCap },
+  { to: "/app/savings", label: "Savings", icon: PiggyBank, exact: false },
+  { to: "/app/convert", label: "Convert", icon: ArrowLeftRight, exact: false },
+  { to: "/app/pay", label: "Pay", icon: QrCode, exact: false },
+  { to: "/app/learn", label: "Learn", icon: GraduationCap, exact: false },
 ] as const;
 
 export function AppShell() {
