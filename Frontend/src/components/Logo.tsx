@@ -5,10 +5,6 @@ interface LogoProps {
   showWordmark?: boolean;
 }
 
-/**
- * MiraBit logo — a stylized "m" + Bitcoin spark.
- * Pure SVG so it's crisp at any size and theme-aware via currentColor.
- */
 export function Logo({ className, showWordmark = true }: LogoProps) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
@@ -25,23 +21,35 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
               <stop offset="100%" stopColor="hsl(18 96% 50%)" />
             </linearGradient>
           </defs>
-          <rect x="2" y="2" width="36" height="36" rx="10" fill="url(#mira-grad)" />
-          {/* Stylized "m" */}
-          <path
-            d="M11 28V14h3l3.5 6 3.5-6h3v14h-3v-8l-3 5h-1l-3-5v8z"
-            fill="white"
-            opacity="0.95"
+          <rect
+            x="2"
+            y="2"
+            width="36"
+            height="36"
+            rx="10"
+            fill="hsl(18 96% 50%)"
           />
-          {/* Bitcoin spark */}
-          <circle cx="30" cy="13" r="4" fill="white" />
+          {/* Stylized "m" */}
           <text
-            x="30"
-            y="15.5"
+            x="15"
+            y="27"
             textAnchor="middle"
-            fontSize="6.5"
-            fontWeight="800"
-            fill="hsl(28 96% 50%)"
+            fontSize="18"
+            fontWeight="600"
+            fill="white"
             fontFamily="Inter, sans-serif"
+          >
+            M
+          </text>
+
+          <text
+            x="29"
+            y="26"
+            textAnchor="middle"
+            fontSize="19"
+            fontWeight="800"
+            fill="white"
+            fontFamily="Arial, sans-serif"
           >
             ₿
           </text>
@@ -53,7 +61,7 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
             Mira<span className="text-primary">Bit</span>
           </span>
           <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
-            student finance
+            Save. Convert. Pay
           </span>
         </div>
       )}
