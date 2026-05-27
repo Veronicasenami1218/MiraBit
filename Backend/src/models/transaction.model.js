@@ -1,18 +1,24 @@
 /**
- * src/models/transaction.model.js – Lightning Transaction Log
+ * src/models/transaction.model.js – User Transaction Log
  *
- * Persists every send/receive attempt so the frontend can render fast,
- * paginated history without hitting Breez SDK on every page load.
- * Also enables the README's "Offline Savings Mode" / sync feature.
+ * Records every wallet-affecting action so the frontend can render fast,
+ * paginated history without re-hitting Breez. Also enables the offline-queue
+ * "settle on reconnect" feature (see queuedPayment.model.js).
+ *
+ * Type values mirror the FE's TxType:
+ *   "save" | "convert" | "pay" | "receive" | "learn-reward"
  */
 
 'use strict';
 
 const { Schema, model } = require('mongoose');
 
+const TX_TYPES    = ['save', 'convert', 'pay', 'receive', 'learn-reward'];
+const TX_STATUSES = ['completed', 'pending', 'queued', 'failed', 'expired'];
+const CURRENCIES  = ['BTC', 'NGN', 'USDT'];
+
 const TransactionSchema = new Schema(
   {
-    // Owning wallet (Nostr pubkey – denormalised for fast lookup)
     pubkey: {
       type:     String,
       required: true,
@@ -20,53 +26,30 @@ const TransactionSchema = new Schema(
       index:    true,
     },
 
-    // Lightning payment hash (unique per payment when known)
-    paymentHash: {
-      type:    String,
-      index:   true,
-      sparse:  true,
-    },
+    type:   { type: String, enum: TX_TYPES, required: true },
+    status: { type: String, enum: TX_STATUSES, default: 'completed', index: true },
 
-    // Local reference (returned to client even before payment hash exists)
-    reference: { type: String, index: true },
+    // FE shape: fromCurrency may be null for "receive" / "learn-reward"
+    fromCurrency: { type: String, enum: [...CURRENCIES, null], default: null },
+    fromAmount:   { type: Number, default: 0, min: 0 },
+    toCurrency:   { type: String, enum: CURRENCIES, required: true },
+    toAmount:     { type: Number, required: true, min: 0 },
 
-    direction: {
-      type:     String,
-      enum:     ['incoming', 'outgoing'],
-      required: true,
-    },
+    note:         { type: String, default: null, maxlength: 500 },
+    counterparty: { type: String, default: null },
 
-    type: {
-      type: String,
-      enum: ['invoice', 'lnurl', 'onchain', 'nwc'],
-      default: 'invoice',
-    },
+    // Lightning-specific (only set when type === 'pay' or 'receive' through LN)
+    paymentHash:    { type: String, default: null, index: true, sparse: true },
+    invoice:        { type: String, default: null },
+    feeSats:        { type: Number, default: 0, min: 0 },
 
-    status: {
-      type:    String,
-      enum:    ['pending', 'complete', 'failed', 'expired'],
-      default: 'pending',
-      index:   true,
-    },
-
-    amountSats: { type: Number, required: true, min: 0 },
-    feeSats:    { type: Number, default: 0, min: 0 },
-
-    // BOLT-11 or LNURL string (long, but useful for debugging)
-    invoice:     { type: String, default: null },
-    description: { type: String, default: null, maxlength: 500 },
-
-    // Counterparty pubkey, when known (e.g. NWC client)
-    counterpartyPubkey: { type: String, default: null },
-
-    // Currency conversion snapshot at time of payment
+    // Currency-rate snapshot at execution time
     rateSnapshot: {
-      currency:  { type: String, default: null }, // e.g. "NGN"
-      rate:      { type: Number, default: null }, // 1 BTC = ? <currency>
-      fiatValue: { type: Number, default: null },
+      BTC_USD:  { type: Number, default: null },
+      USD_NGN:  { type: Number, default: null },
+      fetchedAt: { type: Date, default: null },
     },
 
-    // Free-form metadata bucket (extra Breez fields, NWC method, etc.)
     metadata: { type: Schema.Types.Mixed, default: {} },
 
     settledAt: { type: Date, default: null },
@@ -75,16 +58,31 @@ const TransactionSchema = new Schema(
     timestamps: true,
     versionKey: false,
     toJSON: {
-      transform: (_doc, ret) => {
-        ret.id = ret._id.toString();
-        delete ret._id;
-        return ret;
-      },
+      // Return shape matches the FE `Transaction` interface
+      transform: (_doc, ret) => ({
+        id:            ret._id.toString(),
+        type:          ret.type,
+        status:        ret.status,
+        fromCurrency:  ret.fromCurrency,
+        fromAmount:    ret.fromAmount,
+        toCurrency:    ret.toCurrency,
+        toAmount:      ret.toAmount,
+        note:          ret.note || undefined,
+        counterparty:  ret.counterparty || undefined,
+        createdAt:     ret.createdAt instanceof Date ? ret.createdAt.getTime() : ret.createdAt,
+      }),
     },
   }
 );
 
-// Compound index for the most common query: "wallet history, newest first"
+// Fast history queries: "wallet history, newest first"
 TransactionSchema.index({ pubkey: 1, createdAt: -1 });
 
-module.exports = model('Transaction', TransactionSchema);
+const TransactionModel = model('Transaction', TransactionSchema);
+
+// Expose enums for validators
+TransactionModel.TX_TYPES    = TX_TYPES;
+TransactionModel.TX_STATUSES = TX_STATUSES;
+TransactionModel.CURRENCIES  = CURRENCIES;
+
+module.exports = TransactionModel;

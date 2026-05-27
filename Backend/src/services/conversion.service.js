@@ -201,4 +201,24 @@ const convert = async ({ amount, from, to }) => {
   };
 };
 
-module.exports = { getAllRates, getRate, convert, hydrateCacheFromDb };
+/**
+ * Return rates in the exact shape the React frontend expects.
+ *
+ *   { BTC_USD: number, USD_NGN: number, updatedAt: number (ms), isStale: boolean }
+ *
+ * `isStale` is true when the rates were served from the in-memory or
+ * persisted cache after a fresh upstream fetch failed.
+ *
+ * @returns {Promise<{BTC_USD:number, USD_NGN:number, updatedAt:number, isStale:boolean}>}
+ */
+const getRatesForFrontend = async () => {
+  const r = await getAllRates();
+  return {
+    BTC_USD:   r.BTC_USD,
+    USD_NGN:   r.BTC_NGN / r.BTC_USD, // derive NGN per USD from BTC pairs
+    updatedAt: new Date(r.fetchedAt).getTime(),
+    isStale:   Boolean(r.stale),
+  };
+};
+
+module.exports = { getAllRates, getRate, convert, hydrateCacheFromDb, getRatesForFrontend };

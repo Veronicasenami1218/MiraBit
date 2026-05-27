@@ -29,6 +29,21 @@ const getRates = async (req, res, next) => {
 };
 
 /**
+ * GET /conversion/rates/fe
+ * Returns rates in the exact shape the React frontend `useRates` hook expects:
+ *   { BTC_USD, USD_NGN, updatedAt, isStale }
+ */
+const getRatesForFrontend = async (req, res, next) => {
+  try {
+    const rates = await conversionService.getRatesForFrontend();
+    return ok(res, 'Exchange rates (frontend shape)', rates);
+  } catch (err) {
+    logger.error('getRatesForFrontend error:', err);
+    next(err);
+  }
+};
+
+/**
  * GET /conversion/rate?from=BTC&to=NGN
  * Get the current exchange rate for a specific pair.
  */
@@ -113,4 +128,4 @@ const satsToBtc = (req, res) => {
   return ok(res, 'Satoshis to BTC', { sats, btc });
 };
 
-module.exports = { getRates, getRate, convert, btcToSats, satsToBtc };
+module.exports = { getRates, getRatesForFrontend, getRate, convert, btcToSats, satsToBtc };
