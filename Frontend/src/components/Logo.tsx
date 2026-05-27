@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface LogoProps {
   className?: string;
@@ -7,7 +8,7 @@ interface LogoProps {
 
 export function Logo({ className, showWordmark = true }: LogoProps) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <Link to="/" className={cn("flex items-center gap-2", className)}>
       <div className="relative">
         <svg
           viewBox="0 0 40 40"
@@ -29,7 +30,6 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
             rx="10"
             fill="hsl(18 96% 50%)"
           />
-          {/* Stylized "m" */}
           <text
             x="15"
             y="27"
@@ -41,7 +41,6 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
           >
             M
           </text>
-
           <text
             x="29"
             y="26"
@@ -65,6 +64,6 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
           </span>
         </div>
       )}
-    </div>
+    </Link>
   );
 }
