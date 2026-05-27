@@ -116,7 +116,7 @@ export default function Landing() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border bg-card/80 backdrop-blur px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Sparkles className="h-3 w-3 text-primary" />
-                Bitcoin made simple — for everyone
+                Bitcoin made simple
               </div>
               <h1 className="mt-5 text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
                 Save smarter.
@@ -383,7 +383,7 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="container max-w-5xl pb-24">
-        <div className="relative overflow-hidden rounded-3xl p-10 md:p-16 text-center text-white">
+        <div className="relative overflow-hidden rounded-3xl p-10 md:p-16 text-center text-black">
           <div
             className="absolute inset-0 -z-10"
             style={{
@@ -394,7 +394,7 @@ export default function Landing() {
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
             Ready to start saving in Bitcoin?
           </h2>
-          <p className="mt-4 text-white/90 max-w-xl mx-auto">
+          <p className="mt-4 text-black/90 max-w-xl mx-auto">
             Open the app — no signup, no waiting. Explore the entire MiraBit
             experience in seconds.
           </p>
