@@ -2,34 +2,83 @@ import { WifiOff, RefreshCw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useWallet } from "@/hooks/useWallet";
+import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
 
 /**
  * Persistent banner shown when the device (or simulated mode) is offline.
- * Also auto-settles queued transactions when connectivity is restored.
+ *
+ * On reconnect it triggers TWO settlement paths:
+ *   1. `settleQueued()` from useWallet — handles both the legacy local
+ *      queue AND (when logged in) the server-side queue flush, since the
+ *      backend-backed implementation of useWallet maps settleQueued to
+ *      POST /payments/queue/flush.
+ *   2. A direct `flush()` from useOfflineQueue as a belt-and-braces
+ *      retry in case there are server-queued items that have no matching
+ *      entry in the local `transactions` array (e.g. queued from another
+ *      device, then this device came back online).
  */
 export function OfflineBanner() {
   const { isOnline, simulatedOffline } = useOnlineStatus();
   const { transactions, settleQueued } = useWallet();
+  const queue = useOfflineQueue();
   const { toast } = useToast();
   const wasOffline = useRef(!isOnline);
 
-  const queuedCount = transactions.filter((t) => t.status === "queued").length;
+  // Combine queue counts from both sources – the UI shows whichever is larger
+  const localQueued  = transactions.filter((t) => t.status === "queued").length;
+  const queuedCount  = Math.max(localQueued, queue.pendingCount);
 
   // Auto-settle queued txs when we come back online.
   useEffect(() => {
-    if (isOnline && wasOffline.current && queuedCount > 0) {
-      const settled = settleQueued();
-      if (settled > 0) {
-        toast({
-          title: "Back online",
-          description: `Synced ${settled} queued payment${settled === 1 ? "" : "s"}.`,
-        });
-      }
+    if (!isOnline || !wasOffline.current) {
+      wasOffline.current = !isOnline;
+      return;
     }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        let settled = 0;
+
+        if (localQueued > 0) {
+          const r = await Promise.resolve(settleQueued());
+          if (!cancelled) settled += (typeof r === "number" ? r : 0);
+        }
+
+        // Belt-and-braces: also call the server flush even if local thinks
+        // nothing is queued (cross-device case). When useWallet is in
+        // server-mode, settleQueued() already did this — second call is a
+        // cheap no-op (returns processed=0).
+        if (queue.enabled && queue.pendingCount > 0) {
+          const r = await queue.flush();
+          if (!cancelled) settled += r?.completed ?? 0;
+        }
+
+        if (settled > 0 && !cancelled) {
+          toast({
+            title:       "Back online",
+            description: `Synced ${settled} queued payment${settled === 1 ? "" : "s"}.`,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          toast({
+            title:       "Sync failed",
+            description: err instanceof Error ? err.message : "Could not settle queued payments.",
+            variant:     "destructive",
+          });
+        }
+      }
+    })();
+
     wasOffline.current = !isOnline;
-  }, [isOnline, queuedCount, settleQueued, toast]);
+    return () => { cancelled = true; };
+    // We intentionally only run when isOnline transitions; queuedCount/etc are read above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
 
   if (isOnline) return null;
 

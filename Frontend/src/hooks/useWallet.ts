@@ -1,5 +1,27 @@
-import { useCallback } from "react";
+// src/hooks/useWallet.ts — Wallet state + mutations
+//
+// Two backends transparently behind the same public API:
+//
+//   1. SERVER-BACKED  (when VITE_API_BASE_URL is set AND user is logged in)
+//      → uses /wallet, /payments/queue endpoints via apiFetch
+//      → offline payments are enqueued server-side (POST /payments/queue)
+//        and auto-flushed on reconnect (POST /payments/queue/flush)
+//
+//   2. LOCAL DEMO     (anything else)
+//      → original localStorage behaviour, preserved verbatim so the
+//        landing-page / pre-login experience still works
+//
+// The PUBLIC RETURN SHAPE is identical in both modes so no page component
+// has to change:
+//   { wallet, transactions, deposit, convertFunds, saveToBtc,
+//     payBtc, settleQueued, reward }
+
+import { useCallback, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { useApi } from "@/hooks/useApi";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useRates } from "@/hooks/useRates";
 import {
   type Currency,
   type Transaction,
@@ -9,17 +31,11 @@ import {
   newId,
   round,
 } from "@/lib/mirabit";
-import { useRates } from "@/hooks/useRates";
 
 const WALLET_KEY = "mirabit:wallet:v1";
 const TX_KEY = "mirabit:transactions:v1";
 
-const DEFAULT_WALLET: Wallet = {
-  // Seed with a small starter balance so new users see live numbers.
-  BTC: 0.0008,
-  NGN: 25000,
-  USDT: 15,
-};
+const DEFAULT_WALLET: Wallet = { BTC: 0.0008, NGN: 25000, USDT: 15 };
 
 const DEFAULT_TX: Transaction[] = [
   {
@@ -46,7 +62,262 @@ interface RecordTxInput {
   status?: "completed" | "queued" | "pending";
 }
 
-export function useWallet() {
+export interface UseWalletResult {
+  wallet: Wallet;
+  transactions: Transaction[];
+  deposit:        (currency: Currency, amount: number, note?: string) => Transaction | Promise<Transaction>;
+  convertFunds:   (from: Currency, to: Currency, amount: number, note?: string) => Transaction | Promise<Transaction>;
+  saveToBtc:      (from: Currency, amount: number, goalName?: string) => Transaction | Promise<Transaction>;
+  payBtc:         (amount: number, counterparty: string, online?: boolean, note?: string) => Transaction | Promise<Transaction>;
+  settleQueued:   () => number | Promise<number>;
+  reward:         (amountBtc: number, note: string) => Transaction | Promise<Transaction>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SERVER-BACKED implementation
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface BackendBalance {
+  pubkey: string;
+  balances: Wallet;
+  lightningBalanceSats: number;
+  onchainBalanceSats: number;
+  pendingSats: number;
+}
+
+interface BackendTxEnvelope {
+  // The /transactions endpoint returns { data: Transaction[], meta }
+  // and the wallet operations return { data: { wallet, transaction } }
+  wallet?: BackendBalance;
+  transaction?: Transaction;
+}
+
+function useServerWallet(pubkey: string): UseWalletResult {
+  const api = useApi();
+  const qc  = useQueryClient();
+  const enabled = api.isAuthenticated && pubkey.length === 64;
+
+  const balanceKey = useMemo(() => ["wallet", "balance", pubkey] as const, [pubkey]);
+  const txKey      = useMemo(() => ["wallet", "transactions", pubkey] as const, [pubkey]);
+
+  const balanceQuery = useQuery<BackendBalance>({
+    queryKey: balanceKey,
+    queryFn: () => api.get<BackendBalance>(`/wallet/${pubkey}/balance`),
+    staleTime: 15_000,
+    enabled,
+  });
+
+  const txQuery = useQuery<Transaction[]>({
+    queryKey: txKey,
+    queryFn: async () => {
+      const list = await api.get<Transaction[]>(`/wallet/${pubkey}/transactions`, {
+        query: { limit: 100 },
+      });
+      return Array.isArray(list) ? list : [];
+    },
+    staleTime: 15_000,
+    enabled,
+  });
+
+  const wallet: Wallet = balanceQuery.data?.balances ?? DEFAULT_WALLET;
+  const transactions: Transaction[] = txQuery.data ?? [];
+
+  // ── Mutations ───────────────────────────────────────────────────────────
+  const onChange = () => {
+    qc.invalidateQueries({ queryKey: balanceKey });
+    qc.invalidateQueries({ queryKey: txKey });
+  };
+
+  const depositMut = useMutation({
+    mutationFn: async (input: { currency: Currency; amount: number; note?: string }) => {
+      const res = await api.post<BackendTxEnvelope>(`/wallet/${pubkey}/deposit`, input);
+      return res.transaction!;
+    },
+    onSuccess: onChange,
+  });
+
+  const convertMut = useMutation({
+    mutationFn: async (input: { fromCurrency: Currency; toCurrency: Currency; amount: number }) => {
+      const res = await api.post<BackendTxEnvelope>(`/wallet/${pubkey}/convert`, input);
+      return res.transaction!;
+    },
+    onSuccess: onChange,
+  });
+
+  const saveMut = useMutation({
+    mutationFn: async (input: { sourceCurrency: Currency; amount: number; goalId?: string }) => {
+      const res = await api.post<BackendTxEnvelope>(`/wallet/${pubkey}/save-to-btc`, input);
+      return res.transaction!;
+    },
+    onSuccess: onChange,
+  });
+
+  const rewardMut = useMutation({
+    mutationFn: async (input: { amountBtc: number; note?: string }) => {
+      const res = await api.post<BackendTxEnvelope>(`/wallet/${pubkey}/reward`, input);
+      return res.transaction!;
+    },
+    onSuccess: onChange,
+  });
+
+  // Offline pay = enqueue on the server
+  const enqueueMut = useMutation({
+    mutationFn: async (input: { recipient: string; amount: number; sourceCurrency: Currency; note?: string }) => {
+      return api.post<{ id: string; status: string }>(`/payments/queue`, input);
+    },
+    onSuccess: onChange,
+  });
+
+  // Online pay = ask the LN service to settle now
+  const payNowMut = useMutation({
+    mutationFn: async (input: { invoice: string; amountSats: number }) => {
+      return api.post<{ paymentHash: string; status: string }>(`/lightning/pay`, input);
+    },
+    onSuccess: onChange,
+  });
+
+  // Flush server-side offline queue
+  const flushMut = useMutation({
+    mutationFn: async () =>
+      api.post<{ processed: number; completed: number; failed: number; retried: number }>(
+        `/payments/queue/flush`,
+        {},
+      ),
+    onSuccess: onChange,
+  });
+
+  // ── Public API ──────────────────────────────────────────────────────────
+
+  const deposit = useCallback(
+    async (currency: Currency, amount: number, note = "Top-up"): Promise<Transaction> => {
+      if (amount <= 0) throw new Error("Amount must be positive");
+      return depositMut.mutateAsync({ currency, amount, note });
+    },
+    [depositMut],
+  );
+
+  const convertFunds = useCallback(
+    async (from: Currency, to: Currency, amount: number): Promise<Transaction> => {
+      if (amount <= 0) throw new Error("Amount must be positive");
+      if (from === to) throw new Error("Pick two different currencies");
+      return convertMut.mutateAsync({ fromCurrency: from, toCurrency: to, amount });
+    },
+    [convertMut],
+  );
+
+  const saveToBtc = useCallback(
+    async (from: Currency, amount: number, goalName?: string): Promise<Transaction> => {
+      if (amount <= 0) throw new Error("Amount must be positive");
+      // We don't currently have a goalName→goalId map here; the page that
+      // knows the goal id can call /save-to-btc directly with goalId.
+      // goalName is preserved purely for the transaction note.
+      const tx = await saveMut.mutateAsync({ sourceCurrency: from, amount });
+      if (goalName && tx) tx.note = `Saved to ${goalName}`;
+      return tx;
+    },
+    [saveMut],
+  );
+
+  /**
+   * payBtc:
+   *   - online === true  → tries to settle now via /lightning/pay if a valid
+   *     BOLT-11 invoice is detected; otherwise records a local pending tx
+   *     placeholder. (Recipient resolution by handle/address is server-side
+   *     future work.)
+   *   - online === false → server-side enqueue via /payments/queue.
+   */
+  const payBtc = useCallback(
+    async (amount: number, counterparty: string, online = true, note?: string): Promise<Transaction> => {
+      if (amount <= 0) throw new Error("Amount must be positive");
+
+      if (!online) {
+        const queued = await enqueueMut.mutateAsync({
+          recipient: counterparty,
+          amount,
+          sourceCurrency: "BTC",
+          note: note ?? "Queued while offline",
+        });
+        // Synthetic Transaction shape so the UI list stays consistent
+        return {
+          id: queued.id,
+          type: "pay",
+          status: "queued",
+          fromCurrency: "BTC",
+          fromAmount: amount,
+          toCurrency: "BTC",
+          toAmount: amount,
+          counterparty,
+          note: note ?? "Queued while offline",
+          createdAt: Date.now(),
+        };
+      }
+
+      // Online path: if recipient is a BOLT-11 invoice, settle now.
+      const isInvoice = /^(lnbc|lntb|lnbcrt)\d/i.test(counterparty.trim());
+      if (isInvoice) {
+        const amountSats = Math.round(amount * 1e8);
+        await payNowMut.mutateAsync({ invoice: counterparty.trim(), amountSats });
+        // Backend logs the Transaction itself; we return a synthetic optimistic record
+        return {
+          id: newId(),
+          type: "pay",
+          status: "completed",
+          fromCurrency: "BTC",
+          fromAmount: amount,
+          toCurrency: "BTC",
+          toAmount: amount,
+          counterparty,
+          note,
+          createdAt: Date.now(),
+        };
+      }
+
+      // Non-invoice (address / @handle) online send: server-side resolver
+      // is not yet implemented. Enqueue anyway so it can be settled when
+      // resolution is available.
+      const queued = await enqueueMut.mutateAsync({
+        recipient: counterparty,
+        amount,
+        sourceCurrency: "BTC",
+        note: note ?? "Send (pending resolution)",
+      });
+      return {
+        id: queued.id,
+        type: "pay",
+        status: "pending",
+        fromCurrency: "BTC",
+        fromAmount: amount,
+        toCurrency: "BTC",
+        toAmount: amount,
+        counterparty,
+        note: note ?? "Send (pending resolution)",
+        createdAt: Date.now(),
+      };
+    },
+    [enqueueMut, payNowMut],
+  );
+
+  const settleQueued = useCallback(async (): Promise<number> => {
+    const result = await flushMut.mutateAsync();
+    return result?.completed ?? 0;
+  }, [flushMut]);
+
+  const reward = useCallback(
+    async (amountBtc: number, note: string): Promise<Transaction> => {
+      if (amountBtc <= 0) throw new Error("Reward must be positive");
+      return rewardMut.mutateAsync({ amountBtc, note });
+    },
+    [rewardMut],
+  );
+
+  return { wallet, transactions, deposit, convertFunds, saveToBtc, payBtc, settleQueued, reward };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOCAL DEMO implementation (preserved from the pre-backend MVP)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function useLocalWallet(): UseWalletResult {
   const [wallet, setWallet] = useLocalStorage<Wallet>(WALLET_KEY, DEFAULT_WALLET);
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>(TX_KEY, DEFAULT_TX);
   const { rates } = useRates();
@@ -82,7 +353,6 @@ export function useWallet() {
     [setWallet],
   );
 
-  /** Add funds (top up). Purely simulated in the MVP. */
   const deposit = useCallback(
     (currency: Currency, amount: number, note = "Top-up") => {
       if (amount <= 0) throw new Error("Amount must be positive");
@@ -99,7 +369,6 @@ export function useWallet() {
     [applyToWallet, recordTransaction],
   );
 
-  /** Convert between currencies. */
   const convertFunds = useCallback(
     (from: Currency, to: Currency, amount: number, note?: string): Transaction => {
       if (amount <= 0) throw new Error("Amount must be positive");
@@ -119,7 +388,6 @@ export function useWallet() {
     [wallet, rates, applyToWallet, recordTransaction],
   );
 
-  /** Move funds into BTC savings (any source currency → BTC). */
   const saveToBtc = useCallback(
     (from: Currency, amount: number, goalName?: string): Transaction => {
       if (amount <= 0) throw new Error("Amount must be positive");
@@ -138,7 +406,6 @@ export function useWallet() {
     [wallet, rates, applyToWallet, recordTransaction],
   );
 
-  /** Pay with BTC. If `online` is false, queue instead of completing. */
   const payBtc = useCallback(
     (amount: number, counterparty: string, online = true, note?: string): Transaction => {
       if (amount <= 0) throw new Error("Amount must be positive");
@@ -156,7 +423,6 @@ export function useWallet() {
           status: "completed",
         });
       }
-      // Offline: just queue it. Funds stay until we come back online.
       return recordTransaction({
         type: "pay",
         fromCurrency: "BTC",
@@ -171,21 +437,17 @@ export function useWallet() {
     [wallet, applyToWallet, recordTransaction],
   );
 
-  /** Settle all queued transactions (e.g. when connection returns). */
   const settleQueued = useCallback(() => {
     let updated = false;
     setTransactions((prev) =>
       prev.map((tx) => {
         if (tx.status !== "queued") return tx;
-        // Try to debit. If balance is insufficient, mark pending instead.
-        // We must read the latest wallet value via the functional setter below.
         updated = true;
         return { ...tx, status: "completed" as const, note: (tx.note ?? "") + " (synced)" };
       }),
     );
     if (!updated) return 0;
 
-    // Apply debits in one pass.
     let count = 0;
     setWallet((prev) => {
       let btc = prev.BTC;
@@ -217,14 +479,32 @@ export function useWallet() {
     [applyToWallet, recordTransaction],
   );
 
-  return {
-    wallet,
-    transactions,
-    deposit,
-    convertFunds,
-    saveToBtc,
-    payBtc,
-    settleQueued,
-    reward,
-  };
+  return { wallet, transactions, deposit, convertFunds, saveToBtc, payBtc, settleQueued, reward };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dispatcher
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Wallet hook with two transparent backends:
+ *
+ *   - SERVER  when both VITE_API_BASE_URL is set AND the user is logged in
+ *   - LOCAL   otherwise (localStorage-only demo mode, preserved verbatim)
+ *
+ * Public return shape never changes, so page components don't care which
+ * mode they are running under.
+ *
+ * Implementation note: we ALWAYS call both hooks so React's hook order is
+ * stable across renders (the user can log in/out at runtime). The unused
+ * one is harmless – useServerWallet is disabled via `enabled: pubkey != null`
+ * inside its react-query calls.
+ */
+export function useWallet(): UseWalletResult {
+  const api    = useApi();
+  const server = useServerWallet(api.pubkey ?? "");
+  const local  = useLocalWallet();
+
+  return api.isAuthenticated && api.pubkey ? server : local;
+}
+
