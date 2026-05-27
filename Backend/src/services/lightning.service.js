@@ -10,7 +10,25 @@
 
 const breezService = require('./breez.service');
 const { generateRef } = require('../utils/crypto');
+const { Transaction } = require('../models');
 const logger = require('../utils/logger');
+
+/**
+ * Persist a transaction document. Failures are logged but never thrown –
+ * a logging hiccup must not cause a successful Lightning payment to error out.
+ *
+ * @param {object} data – Transaction fields
+ * @returns {Promise<object|null>}
+ */
+const logTransaction = async (data) => {
+  try {
+    const doc = await Transaction.create(data);
+    return doc.toJSON();
+  } catch (err) {
+    logger.error(`logTransaction failed: ${err.message}`, { data });
+    return null;
+  }
+};
 
 /**
  * Create a Lightning invoice for receiving a payment.
@@ -21,17 +39,32 @@ const logger = require('../utils/logger');
  * @param {number} params.expirySeconds
  * @returns {Promise<object>}
  */
-const createInvoice = async ({ amountSats, description, expirySeconds }) => {
+const createInvoice = async ({ amountSats, description, expirySeconds, payeePubkey }) => {
   logger.info(`Creating invoice: ${amountSats} sats – "${description}"`);
 
-  const result = await breezService.receivePayment({ amountSats, description, expirySeconds });
+  const result    = await breezService.receivePayment({ amountSats, description, expirySeconds });
+  const reference = generateRef();
+
+  // Log as a pending incoming transaction (status flips to "complete" when paid)
+  if (payeePubkey) {
+    await logTransaction({
+      pubkey:      payeePubkey.toLowerCase(),
+      reference,
+      direction:   'incoming',
+      type:        'invoice',
+      status:      'pending',
+      amountSats,
+      description,
+      invoice:     result.destination,
+    });
+  }
 
   return {
     invoice:       result.destination,
     amountSats,
     description,
     expirySeconds,
-    reference:     generateRef(),
+    reference,
     createdAt:     new Date().toISOString(),
   };
 };
@@ -50,7 +83,7 @@ const payInvoice = async ({ invoice, amountSats, payerPubkey }) => {
 
   const result = await breezService.sendPayment({ invoice, amountSats });
 
-  return {
+  const payment = {
     paymentHash:  result.payment?.paymentHash || result.paymentHash,
     amountSats:   result.payment?.amountSat   || amountSats,
     feeSats:      result.payment?.feesSat      || 0,
@@ -58,6 +91,22 @@ const payInvoice = async ({ invoice, amountSats, payerPubkey }) => {
     payerPubkey,
     paidAt:       new Date().toISOString(),
   };
+
+  if (payerPubkey) {
+    await logTransaction({
+      pubkey:      payerPubkey.toLowerCase(),
+      paymentHash: payment.paymentHash,
+      direction:   'outgoing',
+      type:        'invoice',
+      status:      payment.status,
+      amountSats:  payment.amountSats,
+      feeSats:     payment.feeSats,
+      invoice,
+      settledAt:   payment.status === 'complete' ? new Date() : null,
+    });
+  }
+
+  return payment;
 };
 
 /**
@@ -100,7 +149,7 @@ const lnurlPay = async ({ lnurl, amountSats, payerPubkey }) => {
   // Breez SDK handles LNURL resolution internally when passed as destination
   const result = await breezService.sendPayment({ invoice: lnurl, amountSats });
 
-  return {
+  const payment = {
     lnurl,
     amountSats,
     feeSats:     result.payment?.feesSat || 0,
@@ -108,6 +157,22 @@ const lnurlPay = async ({ lnurl, amountSats, payerPubkey }) => {
     payerPubkey,
     paidAt:      new Date().toISOString(),
   };
+
+  if (payerPubkey) {
+    await logTransaction({
+      pubkey:      payerPubkey.toLowerCase(),
+      paymentHash: result.payment?.paymentHash || null,
+      direction:   'outgoing',
+      type:        'lnurl',
+      status:      payment.status,
+      amountSats:  payment.amountSats,
+      feeSats:     payment.feeSats,
+      invoice:     lnurl,
+      settledAt:   payment.status === 'complete' ? new Date() : null,
+    });
+  }
+
+  return payment;
 };
 
 /**

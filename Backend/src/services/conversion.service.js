@@ -13,14 +13,39 @@
 const https  = require('https');
 const config = require('../config');
 const logger = require('../utils/logger');
+const { ExchangeRate } = require('../models');
 
-// ── In-memory rate cache ───────────────────────────────────────────────────────
+// ── In-memory rate cache (fast hot path) ──────────────────────────────────────
 const cache = {
   data:      null,
   updatedAt: 0,
 };
 
 const TTL_MS = (config.conversion.cacheTtlSeconds || 60) * 1000;
+
+/**
+ * Warm the in-memory cache from the persisted ExchangeRate document, if any.
+ * Useful right after a server restart so the very first request doesn't
+ * trigger a CoinGecko fetch when fresh data is already in Mongo.
+ */
+const hydrateCacheFromDb = async () => {
+  try {
+    const doc = await ExchangeRate.findOne({ key: 'latest' }).lean();
+    if (doc && doc.rates) {
+      cache.data = {
+        BTC_USD:   doc.rates.BTC_USD,
+        BTC_NGN:   doc.rates.BTC_NGN,
+        USDT_USD:  doc.rates.USDT_USD,
+        USDT_NGN:  doc.rates.USDT_NGN,
+        fetchedAt: doc.fetchedAt.toISOString(),
+      };
+      cache.updatedAt = doc.fetchedAt.getTime();
+      logger.info('conversion: hydrated rate cache from MongoDB');
+    }
+  } catch (err) {
+    logger.warn(`conversion: cache hydration skipped – ${err.message}`);
+  }
+};
 
 /**
  * Lightweight HTTPS GET helper (no extra dependency).
@@ -86,6 +111,25 @@ const getAllRates = async () => {
     const rates = await fetchRatesFromApi();
     cache.data      = rates;
     cache.updatedAt = now;
+
+    // Persist asynchronously – don't block the response on a DB write
+    ExchangeRate.updateOne(
+      { key: 'latest' },
+      {
+        $set: {
+          rates: {
+            BTC_USD:  rates.BTC_USD,
+            BTC_NGN:  rates.BTC_NGN,
+            USDT_USD: rates.USDT_USD,
+            USDT_NGN: rates.USDT_NGN,
+          },
+          source:    'coingecko',
+          fetchedAt: new Date(rates.fetchedAt),
+        },
+      },
+      { upsert: true }
+    ).catch((err) => logger.warn(`conversion: failed to persist rates – ${err.message}`));
+
     return { ...rates, cached: false };
   } catch (err) {
     logger.error('conversion: failed to fetch rates –', err.message);
@@ -93,6 +137,22 @@ const getAllRates = async () => {
       logger.warn('conversion: returning stale cached rates');
       return { ...cache.data, cached: true, stale: true };
     }
+    // Last-ditch: try the persisted snapshot before giving up
+    try {
+      const doc = await ExchangeRate.findOne({ key: 'latest' }).lean();
+      if (doc) {
+        logger.warn('conversion: serving rates from persisted snapshot');
+        return {
+          BTC_USD:   doc.rates.BTC_USD,
+          BTC_NGN:   doc.rates.BTC_NGN,
+          USDT_USD:  doc.rates.USDT_USD,
+          USDT_NGN:  doc.rates.USDT_NGN,
+          fetchedAt: doc.fetchedAt.toISOString(),
+          cached:    true,
+          stale:     true,
+        };
+      }
+    } catch (_) { /* swallow */ }
     throw new Error('Exchange rate data unavailable. Try again shortly.');
   }
 };
@@ -141,4 +201,4 @@ const convert = async ({ amount, from, to }) => {
   };
 };
 
-module.exports = { getAllRates, getRate, convert };
+module.exports = { getAllRates, getRate, convert, hydrateCacheFromDb };

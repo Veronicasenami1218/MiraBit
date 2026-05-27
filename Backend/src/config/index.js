@@ -16,6 +16,14 @@ const config = {
                     .split(',')
                     .map((o) => o.trim()),
 
+  // ── Database (MongoDB Atlas) ─────────────────────────────────────────────
+  database: {
+    uri:         process.env.MONGODB_URI   || '',
+    name:        process.env.MONGODB_DB_NAME || 'mirabit',
+    maxPoolSize: parseInt(process.env.MONGODB_MAX_POOL_SIZE, 10) || 10,
+    minPoolSize: parseInt(process.env.MONGODB_MIN_POOL_SIZE, 10) || 2,
+  },
+
   // ── Breez SDK ────────────────────────────────────────────────────────────
   breez: {
     apiKey:     process.env.BREEZ_API_KEY      || '',
@@ -52,7 +60,7 @@ const config = {
 };
 
 // Warn about missing critical secrets at startup
-const criticalKeys = ['breez.apiKey', 'nostr.privateKey'];
+const criticalKeys = ['breez.apiKey', 'nostr.privateKey', 'database.uri'];
 criticalKeys.forEach((keyPath) => {
   const value = keyPath.split('.').reduce((obj, k) => obj?.[k], config);
   if (!value && config.nodeEnv === 'production') {

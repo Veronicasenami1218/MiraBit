@@ -5,6 +5,7 @@
 'use strict';
 
 const { ok } = require('../utils/response');
+const { getDatabaseStatus } = require('../config/database');
 const logger  = require('../utils/logger');
 
 /**
@@ -27,11 +28,12 @@ const ping = (req, res) => {
 const detailed = async (req, res, next) => {
   try {
     const checks = {
-      api:    { status: 'ok' },
-      breez:  { status: 'unchecked', note: 'Initialize SDK to check' },
-      nostr:  { status: 'unchecked', note: 'Relay connection checked at startup' },
-      uptime: `${Math.floor(process.uptime())}s`,
-      memory: process.memoryUsage(),
+      api:      { status: 'ok' },
+      database: getDatabaseStatus(),
+      breez:    { status: 'unchecked', note: 'Initialize SDK to check' },
+      nostr:    { status: 'unchecked', note: 'Relay connection checked at startup' },
+      uptime:   `${Math.floor(process.uptime())}s`,
+      memory:   process.memoryUsage(),
     };
 
     logger.debug('Health detailed check performed');
