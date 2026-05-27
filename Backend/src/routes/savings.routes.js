@@ -37,8 +37,109 @@ const updateGoalSchema = Joi.object({
   isAchieved: Joi.boolean().optional(),
 }).min(1);
 
-router.get   ('/goals',     requireNostrAuth, listGoals);
-router.post  ('/goals',     requireNostrAuth, body(createGoalSchema), createGoal);
+/**
+ * @swagger
+ * /savings/goals:
+ *   get:
+ *     tags: [Savings]
+ *     summary: List my savings goals (newest first)
+ *     security: [{ Nip98Auth: [] }]
+ *     responses:
+ *       200:
+ *         description: Goal list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - properties:
+ *                     data: { type: array, items: { $ref: '#/components/schemas/SavingsGoal' } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *   post:
+ *     tags: [Savings]
+ *     summary: Create a new savings goal
+ *     security: [{ Nip98Auth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, target, targetCurrency]
+ *             properties:
+ *               name:           { type: string, minLength: 1, maxLength: 100 }
+ *               emoji:          { type: string, maxLength: 8 }
+ *               target:         { type: number, minimum: 0.00000001 }
+ *               targetCurrency: { $ref: '#/components/schemas/Currency' }
+ *     responses:
+ *       201:
+ *         description: Goal created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - properties: { data: { $ref: '#/components/schemas/SavingsGoal' } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       422: { $ref: '#/components/responses/ValidationError' }
+ */
+router.get ('/goals', requireNostrAuth, listGoals);
+router.post('/goals', requireNostrAuth, body(createGoalSchema), createGoal);
+
+/**
+ * @swagger
+ * /savings/goals/{id}:
+ *   patch:
+ *     tags: [Savings]
+ *     summary: Update a goal I own
+ *     security: [{ Nip98Auth: [] }]
+ *     parameters:
+ *       - $ref: '#/components/parameters/IdParam'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             minProperties: 1
+ *             properties:
+ *               name:       { type: string, maxLength: 100 }
+ *               emoji:      { type: string, maxLength: 8 }
+ *               target:     { type: number, minimum: 0.00000001 }
+ *               savedBtc:   { type: number, minimum: 0 }
+ *               isAchieved: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Updated goal
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - properties: { data: { $ref: '#/components/schemas/SavingsGoal' } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ *   delete:
+ *     tags: [Savings]
+ *     summary: Delete a goal I own
+ *     security: [{ Nip98Auth: [] }]
+ *     parameters:
+ *       - $ref: '#/components/parameters/IdParam'
+ *     responses:
+ *       200:
+ *         description: Deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - properties:
+ *                     data:
+ *                       type: object
+ *                       properties: { id: { type: string } }
+ *       401: { $ref: '#/components/responses/Unauthorized' }
+ *       404: { $ref: '#/components/responses/NotFound' }
+ */
 router.patch ('/goals/:id', requireNostrAuth, body(updateGoalSchema), updateGoal);
 router.delete('/goals/:id', requireNostrAuth, deleteGoal);
 
