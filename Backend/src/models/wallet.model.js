@@ -1,8 +1,10 @@
 /**
  * src/models/wallet.model.js – Wallet Mongoose Model
  *
- * One document per Nostr pubkey. Stores cached balance figures
- * (live balances come from Breez SDK, this is the persistent shadow).
+ * One document per Nostr pubkey. Stores:
+ *  - Multi-currency balances (BTC, NGN, USDT) — these are the
+ *    user-facing balances the React frontend reads/writes.
+ *  - Cached Lightning balance figures from the Breez SDK (sats).
  */
 
 'use strict';
@@ -26,25 +28,30 @@ const WalletSchema = new Schema(
     nip05:       { type: String, default: null },
     lud16:       { type: String, default: null }, // Lightning address
 
-    // Cached balance (sats) – refreshed from Breez on every getBalance() call
+    // ── User-facing multi-currency balances ──────────────────────────────
+    // (these mirror the frontend's `Wallet { BTC, NGN, USDT }` shape)
+    balances: {
+      BTC:  { type: Number, default: 0, min: 0 },
+      NGN:  { type: Number, default: 0, min: 0 },
+      USDT: { type: Number, default: 0, min: 0 },
+    },
+
+    // ── Lightning shadow (cached from Breez SDK, in sats) ────────────────
     lightningBalanceSats: { type: Number, default: 0, min: 0 },
     onchainBalanceSats:   { type: Number, default: 0, min: 0 },
     pendingSats:          { type: Number, default: 0, min: 0 },
 
-    // Local preferences (used by frontend)
     preferredCurrency: {
       type: String,
       enum: ['NGN', 'USD', 'USDT', 'BTC'],
       default: 'NGN',
     },
 
-    // Soft-disable a wallet without deleting it
-    isActive: { type: Boolean, default: true },
-
+    isActive:     { type: Boolean, default: true },
     lastSyncedAt: { type: Date, default: null },
   },
   {
-    timestamps: true, // adds createdAt + updatedAt
+    timestamps: true,
     versionKey: false,
     toJSON: {
       transform: (_doc, ret) => {

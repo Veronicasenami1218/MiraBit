@@ -15,6 +15,7 @@ const Joi = require('joi');
 
 const {
   getRates,
+  getRatesForFrontend,
   getRate,
   convert,
   btcToSats,
@@ -33,10 +34,11 @@ const convertSchema = Joi.object({
 });
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
-router.get('/rates',    getRates);
-router.get('/rate',     getRate);
-router.post('/convert', body(convertSchema), convert);
-router.get('/btc/sats', btcToSats);
-router.get('/sats/btc', satsToBtc);
+router.get('/rates',     getRates);
+router.get('/rates/fe',  getRatesForFrontend);   // shape: { BTC_USD, USD_NGN, updatedAt, isStale }
+router.get('/rate',      getRate);
+router.post('/convert',  body(convertSchema), convert);
+router.get('/btc/sats',  btcToSats);
+router.get('/sats/btc',  satsToBtc);
 
 module.exports = router;
