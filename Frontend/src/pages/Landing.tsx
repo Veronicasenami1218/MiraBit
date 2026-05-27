@@ -19,13 +19,15 @@ const FEATURES = [
   {
     Icon: PiggyBank,
     title: "Bitcoin savings",
-    description: "Save spare Naira or USDT — we convert it into Bitcoin so your money holds value over time.",
+    description:
+      "Save spare Naira or USDT — we convert it into Bitcoin so your money holds value over time.",
     tone: "from-orange-500 to-rose-500",
   },
   {
     Icon: QrCode,
     title: "QR payments",
-    description: "Pay for textbooks, lunch or services with a quick scan. Send Bitcoin in seconds.",
+    description:
+      "Pay for textbooks, lunch or services with a quick scan. Send Bitcoin in seconds.",
     tone: "from-emerald-500 to-teal-500",
   },
   {
@@ -37,19 +39,22 @@ const FEATURES = [
   {
     Icon: WifiOff,
     title: "Works offline",
-    description: "Queue payments and savings without internet. They sync the moment you reconnect.",
+    description:
+      "Queue payments and savings without internet. They sync the moment you reconnect.",
     tone: "from-amber-500 to-yellow-500",
   },
   {
     Icon: GraduationCap,
     title: "Learn & earn sats",
-    description: "Beginner-friendly lessons teach Bitcoin basics. Pass each quiz to earn real sats.",
+    description:
+      "Beginner-friendly lessons teach Bitcoin basics. Pass each quiz to earn real sats.",
     tone: "from-fuchsia-500 to-pink-500",
   },
   {
     Icon: ShieldCheck,
     title: "Private by default",
-    description: "No paperwork, no central database. Your data lives on your device.",
+    description:
+      "No paperwork, no central database. Your data lives on your device.",
     tone: "from-cyan-500 to-sky-500",
   },
 ];
@@ -58,19 +63,22 @@ const TESTIMONIALS = [
   {
     name: "Chinaza",
     role: "200-level Engineering",
-    quote: "I save ₦500 from my allowance every week. Watching my BTC pot grow keeps me motivated.",
+    quote:
+      "I save ₦500 from my allowance every week. Watching my BTC pot grow keeps me motivated.",
     emoji: "👩🏾‍🎓",
   },
   {
     name: "Adewale",
     role: "Final year Econ",
-    quote: "The learn mode finally made Bitcoin click for me. And I earned sats while reading!",
+    quote:
+      "The learn mode finally made Bitcoin click for me. And I earned sats while reading!",
     emoji: "👨🏾‍🎓",
   },
   {
     name: "Tomi",
     role: "100-level CS",
-    quote: "School wifi is a nightmare. MiraBit just queues my payments until I get signal back.",
+    quote:
+      "School wifi is a nightmare. MiraBit just queues my payments until I get signal back.",
     emoji: "🧑🏽‍💻",
   },
 ];
@@ -108,7 +116,7 @@ export default function Landing() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border bg-card/80 backdrop-blur px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Sparkles className="h-3 w-3 text-primary" />
-                Bitcoin made simple — for students
+                Bitcoin made simple
               </div>
               <h1 className="mt-5 text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
                 Save smarter.
@@ -128,16 +136,23 @@ export default function Landing() {
                     Start saving <ArrowRight className="h-5 w-5 ml-1.5" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="h-12 text-base px-6">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-12 text-base px-6"
+                >
                   <Link to="/app/learn">Explore lessons</Link>
                 </Button>
               </div>
               <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                {["Free to start", "Works offline", "Learn & earn sats"].map((b) => (
-                  <li key={b} className="flex items-center gap-1.5">
-                    <Check className="h-4 w-4 text-emerald-600" /> {b}
-                  </li>
-                ))}
+                {["Free to start", "Works offline", "Learn & earn sats"].map(
+                  (b) => (
+                    <li key={b} className="flex items-center gap-1.5">
+                      <Check className="h-4 w-4 text-emerald-600" /> {b}
+                    </li>
+                  ),
+                )}
               </ul>
             </div>
 
@@ -159,7 +174,9 @@ export default function Landing() {
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium opacity-80">Total balance</span>
+                    <span className="text-xs font-medium opacity-80">
+                      Total balance
+                    </span>
                     <Bitcoin className="h-4 w-4" />
                   </div>
                   <div className="mt-2 text-3xl font-extrabold tabular-nums">
@@ -187,16 +204,35 @@ export default function Landing() {
                 </div>
                 <div className="p-5 space-y-3">
                   {[
-                    { i: PiggyBank, t: "Saved to BTC", a: "+0.00012 ₿", c: "text-primary" },
-                    { i: QrCode, t: "Bookstore", a: "-0.00008 ₿", c: "text-rose-600" },
-                    { i: Sparkles, t: "Lesson reward", a: "+0.00003 ₿", c: "text-emerald-600" },
+                    {
+                      i: PiggyBank,
+                      t: "Saved to BTC",
+                      a: "+0.00012 ₿",
+                      c: "text-primary",
+                    },
+                    {
+                      i: QrCode,
+                      t: "Bookstore",
+                      a: "-0.00008 ₿",
+                      c: "text-rose-600",
+                    },
+                    {
+                      i: Sparkles,
+                      t: "Lesson reward",
+                      a: "+0.00003 ₿",
+                      c: "text-emerald-600",
+                    },
                   ].map((row, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
                         <row.i className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div className="flex-1 text-sm font-medium">{row.t}</div>
-                      <div className={`text-sm font-bold tabular-nums ${row.c}`}>{row.a}</div>
+                      <div
+                        className={`text-sm font-bold tabular-nums ${row.c}`}
+                      >
+                        {row.a}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -265,7 +301,9 @@ export default function Landing() {
                 <Icon className="h-6 w-6" />
               </div>
               <h3 className="mt-5 text-lg font-semibold">{title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{description}</p>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                {description}
+              </p>
             </div>
           ))}
         </div>
@@ -301,7 +339,9 @@ export default function Landing() {
               },
             ].map((s) => (
               <div key={s.n} className="rounded-2xl border bg-card p-6">
-                <div className="text-5xl font-extrabold text-primary/30">{s.n}</div>
+                <div className="text-5xl font-extrabold text-primary/30">
+                  {s.n}
+                </div>
                 <h3 className="mt-3 text-xl font-bold">{s.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
               </div>
@@ -316,7 +356,9 @@ export default function Landing() {
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
             Built for the campus crowd
           </h2>
-          <p className="mt-3 text-muted-foreground">What early users are saying.</p>
+          <p className="mt-3 text-muted-foreground">
+            What early users are saying.
+          </p>
         </div>
         <div className="mt-10 grid md:grid-cols-3 gap-4">
           {TESTIMONIALS.map((t) => (
@@ -341,7 +383,7 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="container max-w-5xl pb-24">
-        <div className="relative overflow-hidden rounded-3xl p-10 md:p-16 text-center text-white">
+        <div className="relative overflow-hidden rounded-3xl p-10 md:p-16 text-center text-black">
           <div
             className="absolute inset-0 -z-10"
             style={{
@@ -352,7 +394,7 @@ export default function Landing() {
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
             Ready to start saving in Bitcoin?
           </h2>
-          <p className="mt-4 text-white/90 max-w-xl mx-auto">
+          <p className="mt-4 text-black/90 max-w-xl mx-auto">
             Open the app — no signup, no waiting. Explore the entire MiraBit
             experience in seconds.
           </p>
@@ -373,16 +415,12 @@ export default function Landing() {
         <div className="container max-w-6xl py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
           <Logo />
           <div className="flex items-center gap-5 text-muted-foreground">
-            <Link to="/app" className="hover:text-foreground">App</Link>
-            <Link to="/app/learn" className="hover:text-foreground">Learn</Link>
-            <a
-              href="https://shakespeare.diy"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground"
-            >
-              Vibed with Shakespeare
-            </a>
+            <Link to="/app" className="hover:text-foreground">
+              App
+            </Link>
+            <Link to="/app/learn" className="hover:text-foreground">
+              Learn
+            </Link>
           </div>
         </div>
       </footer>
