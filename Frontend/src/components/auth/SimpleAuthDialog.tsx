@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Eye, EyeOff } from "lucide-react"; // Imported eye icons
 
 interface SimpleAuthDialogProps {
   isOpen: boolean;
@@ -12,15 +13,22 @@ interface SimpleAuthDialogProps {
 }
 
 export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
-  const [step, setStep] = useState<"welcome" | "signup" | "login" | "privacy">(
-    "welcome",
-  );
+  const [step, setStep] = useState<
+    "welcome" | "signup" | "password" | "login" | "privacy"
+  >("welcome");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSignup = () => {
+  // Visibility states for the password inputs
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+
+  const handleNextToPassword = () => {
     if (!name.trim()) {
       setError("Please enter your name.");
       return;
@@ -33,15 +41,30 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       setError("Please accept the privacy policy to continue.");
       return;
     }
+    setError("");
+    setStep("password");
+  };
+
+  const handleSignup = () => {
+    if (!password) {
+      setError("Please enter a password.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     localStorage.setItem(
       "mirabit_user",
       JSON.stringify({
         name: name.trim(),
         email: email.trim(),
+        password: password,
         signupBonus: 2000,
         isNew: true,
       }),
     );
+    window.dispatchEvent(new Event("mirabit_auth_update"));
     onClose();
   };
 
@@ -50,14 +73,18 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       setError("Please enter a valid email.");
       return;
     }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
     const stored = localStorage.getItem("mirabit_user");
     if (!stored) {
       setError("No account found. Please sign up first.");
       return;
     }
     const user = JSON.parse(stored);
-    if (user.email !== email.trim()) {
-      setError("Email not found. Please sign up first.");
+    if (user.email !== email.trim() || user.password !== password) {
+      setError("Invalid email or password.");
       return;
     }
     // Mark as not new on login
@@ -65,6 +92,7 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       "mirabit_user",
       JSON.stringify({ ...user, isNew: false }),
     );
+    window.dispatchEvent(new Event("mirabit_auth_update"));
     onClose();
   };
 
@@ -166,12 +194,89 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
 
               {error && <p className="text-sm text-destructive">{error}</p>}
 
+              <Button onClick={handleNextToPassword} className="w-full h-12">
+                Continue
+              </Button>
+              <button
+                onClick={() => {
+                  setStep("welcome");
+                  setError("");
+                }}
+                className="w-full text-sm text-muted-foreground hover:text-foreground"
+              >
+                Back
+              </button>
+            </div>
+          )}
+
+          {/* Create Password step */}
+          {step === "password" && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="signup-password">Create password</Label>
+                <div className="relative">
+                  <Input
+                    id="signup-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError("");
+                    }}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="signup-confirm-password">
+                  Confirm password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="signup-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setError("");
+                    }}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
               <Button onClick={handleSignup} className="w-full h-12">
                 Get started
               </Button>
               <button
                 onClick={() => {
-                  setStep("welcome");
+                  setStep("signup");
                   setError("");
                 }}
                 className="w-full text-sm text-muted-foreground hover:text-foreground"
@@ -278,6 +383,33 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
                     setError("");
                   }}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="login-password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showLoginPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError("");
+                    }}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button onClick={handleLogin} className="w-full h-12">
