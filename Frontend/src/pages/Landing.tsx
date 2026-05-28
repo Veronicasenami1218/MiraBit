@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
 import { useSeoMeta } from "@unhead/react";
+import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import {
   PiggyBank,
   ArrowLeftRight,
@@ -84,6 +85,17 @@ const TESTIMONIALS = [
 ];
 
 export default function Landing() {
+  const location = useLocation();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    // Resets the animation to hidden whenever the route changes
+    setIsMounted(false);
+    // Triggers the animation after a tiny 50ms delay
+    const timer = setTimeout(() => setIsMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
   useSeoMeta({
     title: "MiraBit — Bitcoin savings & payments for students",
     description:
@@ -114,7 +126,6 @@ export default function Landing() {
         <div className="container max-w-6xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             {/* LEFT SIDE (Text Content) */}
-            {/* CHANGED: Stripped out the "animate-in slide-in" classes so it stays perfectly static */}
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border bg-card/80 backdrop-blur px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Sparkles className="h-3 w-3 text-primary" />
@@ -159,7 +170,6 @@ export default function Landing() {
             </div>
 
             {/* RIGHT SIDE (Phone-style mock card) */}
-            {/* CHANGED: Added lg:-mt-10 to raise the card higher on desktop screens */}
             <div className="relative mx-auto w-full max-w-sm lg:-mt-10 animate-in fade-in slide-in-from-bottom-8 lg:slide-in-from-right-8 duration-[1200ms] delay-[400ms] fill-mode-both ease-out">
               <div
                 className="absolute -inset-8 -z-10 rounded-[3rem] opacity-40 blur-2xl"
@@ -257,19 +267,30 @@ export default function Landing() {
                 Students are locked out of digital finance.
               </h2>
             </div>
-            <ul className="space-y-3 text-base">
+
+            <ul className="space-y-3 text-base flex flex-col items-end overflow-hidden">
               {[
                 "Saving consistently feels impossible on a student budget",
                 "Online payments fail or stall on patchy campus internet",
                 "Crypto looks intimidating without beginner-friendly guidance",
                 "Naira keeps losing value while options to hedge feel out of reach",
-              ].map((p) => (
+              ].map((text, i) => (
                 <li
-                  key={p}
-                  className="flex gap-3 items-start rounded-xl border bg-card p-4"
+                  key={text}
+                  className={`flex gap-3 items-start rounded-xl border bg-card p-4 hover:border-rose-500/30 hover:shadow-sm transition-all duration-700 ease-out
+                    ${
+                      isMounted
+                        ? "opacity-100 translate-x-0"
+                        : "opacity-0 translate-x-12"
+                    }
+                  `}
+                  style={{
+                    transitionDelay: `${i * 300}ms`,
+                    width: `${100 - i * 8}%`,
+                  }}
                 >
-                  <span className="text-rose-500 mt-0.5">✕</span>
-                  <span className="text-muted-foreground">{p}</span>
+                  <span className="text-rose-500 mt-0.5 shrink-0">✕</span>
+                  <span className="text-muted-foreground">{text}</span>
                 </li>
               ))}
             </ul>
@@ -278,8 +299,17 @@ export default function Landing() {
       </section>
 
       {/* Features */}
+      {/* Features */}
+      {/* Features */}
       <section className="container max-w-6xl py-20 md:py-28">
-        <div className="text-center max-w-2xl mx-auto">
+        {/* Header Content */}
+        <div
+          className={`text-center max-w-2xl mx-auto transition-all duration-1000 ease-out ${
+            isMounted
+              ? "opacity-100 translate-y-0 scale-100"
+              : "opacity-0 translate-y-8 scale-95"
+          }`}
+        >
           <p className="text-sm font-semibold text-primary uppercase tracking-wider">
             The solution
           </p>
@@ -292,18 +322,36 @@ export default function Landing() {
           </p>
         </div>
 
+        {/* The Features Grid */}
         <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATURES.map(({ Icon, title, description, tone }) => (
+          {FEATURES.map(({ Icon, title, description, tone }, i) => (
             <div
               key={title}
-              className="group rounded-2xl border bg-card p-6 hover:shadow-lg transition-all hover:-translate-y-1"
+              // CHANGED: Added hover:scale-105 to make the whole card grow,
+              // and increased the lift to hover:-translate-y-2
+              className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-500 ease-out z-10 hover:z-20
+                ${
+                  isMounted
+                    ? "opacity-100 translate-y-0 scale-100"
+                    : "opacity-0 translate-y-12 scale-90"
+                }
+              `}
+              style={{
+                transitionDelay: isMounted ? `${i * 150}ms` : "0ms",
+              }}
             >
+              {/* Icon Container */}
+              {/* CHANGED: group-hover:scale-125 (was 110) and group-hover:-rotate-6 for a bigger twist */}
               <div
-                className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md`}
+                className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md transition-all duration-300 group-hover:scale-125 group-hover:-rotate-6`}
               >
                 <Icon className="h-6 w-6" />
               </div>
-              <h3 className="mt-5 text-lg font-semibold">{title}</h3>
+
+              <h3 className="mt-5 text-lg font-semibold transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                {title}
+              </h3>
+
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                 {description}
               </p>
