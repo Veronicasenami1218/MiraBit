@@ -547,16 +547,106 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="border-t bg-card">
-        <div className="container max-w-6xl py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
-          <Logo />
-          <div className="flex items-center gap-5 text-muted-foreground">
-            <Link to="/app" className="hover:text-foreground">
-              App
-            </Link>
-            <Link to="/app/learn" className="hover:text-foreground">
-              Learn
-            </Link>
+      {/* Upgraded Footer */}
+      <footer className="relative border-t bg-card overflow-hidden mt-12">
+        {/* Subtle bottom glow to match the app's aesthetic */}
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-orange-500/10 via-background to-background" />
+
+        <div className="container max-w-6xl py-12 md:py-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-12">
+            {/* Brand Column (Spans 2 columns on desktop) */}
+            <div className="col-span-2 flex flex-col items-start">
+              <Logo />
+              <p className="mt-5 text-sm text-muted-foreground max-w-sm leading-relaxed">
+                The student-first fintech app. Save in Bitcoin, pay with QR
+                codes, and learn the basics of digital finance without the
+                confusion.
+              </p>
+              <p className="mt-4 text-xs font-bold tracking-widest uppercase text-orange-500">
+                Save. Convert. Pay. Learn.
+              </p>
+            </div>
+
+            {/* Links Column 1: Product */}
+            <div>
+              <h4 className="text-base font-semibold mb-5 text-foreground">
+                Product
+              </h4>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li>
+                  <Link
+                    to="/app"
+                    className="hover:text-orange-500 transition-colors"
+                  >
+                    Launch App
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/app/learn"
+                    className="hover:text-orange-500 transition-colors"
+                  >
+                    Learn & Earn
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="#"
+                    className="hover:text-orange-500 transition-colors"
+                  >
+                    Fees & Limits
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Links Column 2: Connect */}
+            <div>
+              <h4 className="text-base font-semibold mb-5 text-foreground">
+                Connect
+              </h4>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li>
+                  <Link
+                    to="#"
+                    className="hover:text-orange-500 transition-colors"
+                  >
+                    Twitter / X
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="#"
+                    className="hover:text-orange-500 transition-colors"
+                  >
+                    Instagram
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="#"
+                    className="hover:text-orange-500 transition-colors"
+                  >
+                    Campus Reps
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Copyright Bar */}
+          <div className="mt-16 pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+            <p>
+              © {new Date().getFullYear()} MiraBit. Built for the campus crowd.
+            </p>
+            <div className="flex gap-5">
+              <Link to="#" className="hover:text-foreground transition-colors">
+                Privacy Policy
+              </Link>
+              <Link to="#" className="hover:text-foreground transition-colors">
+                Terms of Service
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
