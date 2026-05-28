@@ -301,13 +301,12 @@ export default function Landing() {
       {/* Features */}
       {/* Features */}
       {/* Features */}
+      {/* Features */}
       <section className="container max-w-6xl py-20 md:py-28">
         {/* Header Content */}
         <div
           className={`text-center max-w-2xl mx-auto transition-all duration-1000 ease-out ${
-            isMounted
-              ? "opacity-100 translate-y-0 scale-100"
-              : "opacity-0 translate-y-8 scale-95"
+            isMounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
         >
           <p className="text-sm font-semibold text-primary uppercase tracking-wider">
@@ -327,28 +326,26 @@ export default function Landing() {
           {FEATURES.map(({ Icon, title, description, tone }, i) => (
             <div
               key={title}
-              // CHANGED: Added hover:scale-105 to make the whole card grow,
-              // and increased the lift to hover:-translate-y-2
-              className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-500 ease-out z-10 hover:z-20
+              // CHANGED: duration-500 is now duration-200 for a super snappy jump
+              className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-200 ease-out z-10 hover:z-20
                 ${
                   isMounted
                     ? "opacity-100 translate-y-0 scale-100"
-                    : "opacity-0 translate-y-12 scale-90"
+                    : "opacity-0 translate-y-12 scale-95"
                 }
               `}
               style={{
                 transitionDelay: isMounted ? `${i * 150}ms` : "0ms",
               }}
             >
-              {/* Icon Container */}
-              {/* CHANGED: group-hover:scale-125 (was 110) and group-hover:-rotate-6 for a bigger twist */}
               <div
-                className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md transition-all duration-300 group-hover:scale-125 group-hover:-rotate-6`}
+                // CHANGED: Icon duration is also duration-200 to match the card speed
+                className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md transition-all duration-200 group-hover:scale-125 group-hover:-rotate-6`}
               >
                 <Icon className="h-6 w-6" />
               </div>
 
-              <h3 className="mt-5 text-lg font-semibold transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400">
+              <h3 className="mt-5 text-lg font-semibold transition-colors duration-200 group-hover:text-orange-600 dark:group-hover:text-orange-400">
                 {title}
               </h3>
 
@@ -361,9 +358,17 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
+      {/* How it works */}
       <section className="bg-muted/30 border-y">
         <div className="container max-w-5xl py-20 md:py-24">
-          <div className="text-center">
+          {/* Header Content */}
+          <div
+            className={`text-center transition-all duration-1000 ease-out ${
+              isMounted
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-8"
+            }`}
+          >
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
               How MiraBit works
             </h2>
@@ -371,6 +376,7 @@ export default function Landing() {
               Three simple steps to start owning Bitcoin today.
             </p>
           </div>
+
           <div className="mt-12 grid md:grid-cols-3 gap-6">
             {[
               {
@@ -388,9 +394,23 @@ export default function Landing() {
                 title: "Grow & learn",
                 desc: "Watch your BTC stack build up while you complete fun lessons.",
               },
-            ].map((s) => (
-              <div key={s.n} className="rounded-2xl border bg-card p-6">
-                <div className="text-5xl font-extrabold text-primary/30">
+            ].map((s, i) => (
+              <div
+                key={s.n}
+                // CHANGED: duration-500 is now duration-200 for a snappy hover jump
+                className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-200 ease-out z-10 hover:z-20
+                  ${
+                    isMounted
+                      ? "opacity-100 translate-y-0 scale-100"
+                      : "opacity-0 translate-y-12 scale-95"
+                  }
+                `}
+                style={{
+                  transitionDelay: isMounted ? `${i * 200}ms` : "0ms",
+                }}
+              >
+                {/* CHANGED: duration-300 is now duration-200 so the number syncs with the card speed */}
+                <div className="text-5xl font-extrabold text-primary/30 transition-all duration-200 group-hover:text-primary/60 group-hover:-translate-y-1">
                   {s.n}
                 </div>
                 <h3 className="mt-3 text-xl font-bold">{s.title}</h3>
@@ -400,7 +420,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
       {/* Testimonials */}
       <section className="container max-w-6xl py-20 md:py-28">
         <div className="text-center">
