@@ -494,30 +494,53 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
+      {/* CTA */}
+      {/* CTA */}
       <section className="container max-w-5xl pb-24">
-        <div className="relative overflow-hidden rounded-3xl p-10 md:p-16 text-center text-black">
+        <div
+          className={`relative group overflow-hidden rounded-3xl p-10 md:p-16 text-center text-black transition-all duration-700 ease-out hover:shadow-2xl hover:shadow-orange-500/20 hover:-translate-y-2
+            ${
+              isMounted
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-12"
+            }
+          `}
+          style={{ transitionDelay: isMounted ? "300ms" : "0ms" }}
+        >
+          {/* Background Gradient */}
           <div
-            className="absolute inset-0 -z-10"
+            className="absolute inset-0 -z-10 transition-transform duration-1000 ease-out group-hover:scale-110"
             style={{
               background:
                 "linear-gradient(135deg, hsl(28 96% 54%) 0%, hsl(18 92% 48%) 50%, hsl(340 80% 50%) 100%)",
             }}
           />
+
+          {/* NEW: Trust Badge */}
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-black/10 px-3 py-1 text-xs font-bold uppercase tracking-wider mb-6 backdrop-blur-md">
+            <Sparkles className="h-3 w-3" /> Takes under 60 seconds
+          </div>
+
+          {/* NEW: Compelling, empowering copy */}
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
-            Ready to start saving in Bitcoin?
+            Take control of your money.
           </h2>
-          <p className="mt-4 text-black/90 max-w-xl mx-auto">
-            Open the app — no signup, no waiting. Explore the entire MiraBit
-            experience in seconds.
+          <p className="mt-5 text-black/90 max-w-xl mx-auto text-lg leading-relaxed">
+            Stop watching your savings lose value. Create your free account
+            today to start stacking Bitcoin, paying instantly on campus, and
+            earning rewards.
           </p>
+
           <Button
             asChild
             size="lg"
             variant="secondary"
-            className="mt-7 h-12 text-base px-7 bg-white text-orange-600 hover:bg-white/95"
+            // Made the button slightly taller (h-14), wider (px-8), and bolder
+            className="group/btn mt-8 h-14 text-base px-8 font-bold bg-white text-orange-600 hover:bg-white/95 transition-all duration-200 hover:scale-105 shadow-xl hover:shadow-white/20"
           >
             <Link to="/app">
-              Launch MiraBit <ArrowRight className="h-5 w-5 ml-1.5" />
+              Create free account
+              <ArrowRight className="h-5 w-5 ml-2 transition-transform duration-200 group-hover/btn:translate-x-1.5" />
             </Link>
           </Button>
         </div>
