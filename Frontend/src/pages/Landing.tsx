@@ -110,9 +110,11 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-aurora pt-32 pb-24 md:pt-40 md:pb-32">
+      <section className="relative overflow-hidden bg-aurora pt-24 pb-20 md:pt-28 md:pb-24">
         <div className="container max-w-6xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            {/* LEFT SIDE (Text Content) */}
+            {/* CHANGED: Stripped out the "animate-in slide-in" classes so it stays perfectly static */}
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border bg-card/80 backdrop-blur px-3 py-1 text-xs font-medium text-muted-foreground">
                 <Sparkles className="h-3 w-3 text-primary" />
@@ -156,8 +158,9 @@ export default function Landing() {
               </ul>
             </div>
 
-            {/* Phone-style mock card */}
-            <div className="relative mx-auto w-full max-w-sm">
+            {/* RIGHT SIDE (Phone-style mock card) */}
+            {/* CHANGED: Added lg:-mt-10 to raise the card higher on desktop screens */}
+            <div className="relative mx-auto w-full max-w-sm lg:-mt-10 animate-in fade-in slide-in-from-bottom-8 lg:slide-in-from-right-8 duration-[1200ms] delay-[400ms] fill-mode-both ease-out">
               <div
                 className="absolute -inset-8 -z-10 rounded-[3rem] opacity-40 blur-2xl"
                 style={{
@@ -194,7 +197,7 @@ export default function Landing() {
                     ].map(({ I, l }) => (
                       <div
                         key={l}
-                        className="bg-white/15 backdrop-blur rounded-xl py-2 flex flex-col items-center gap-1"
+                        className="bg-white/15 backdrop-blur rounded-xl py-2 flex flex-col items-center gap-1 hover:bg-white/25 transition-colors cursor-pointer"
                       >
                         <I className="h-4 w-4" />
                         {l}
