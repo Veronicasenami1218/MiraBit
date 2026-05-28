@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { SimpleAuthDialog } from "@/components/auth/SimpleAuthDialog";
 
 const NAV_ITEMS = [
   { to: "/app", label: "Home", icon: Home, exact: true },
@@ -31,16 +32,23 @@ const NAV_ITEMS = [
 
 export function AppShell() {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(true);
   const { pathname } = useLocation();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <SimpleAuthDialog isOpen={authOpen} onClose={() => setAuthOpen(false)} />
+
       <OfflineBanner />
 
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md">
         <div className="container max-w-5xl flex items-center justify-between h-16">
-          <Link to="/app" className="flex items-center" aria-label="MiraBit home">
+          <Link
+            to="/app"
+            className="flex items-center"
+            aria-label="MiraBit home"
+          >
             <Logo />
           </Link>
 
@@ -171,7 +179,9 @@ export function AppShell() {
                   to={item.to}
                   className={cn(
                     "flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
-                    active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                    active
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <item.icon

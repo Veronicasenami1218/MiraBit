@@ -46,11 +46,38 @@ export default function Dashboard() {
   const { wallet, transactions } = useWallet();
   const [displayCurrency, setDisplayCurrency] = useState<Currency>("NGN");
 
+  const stored = localStorage.getItem("mirabit_user");
+  const user = stored ? JSON.parse(stored) : null;
+  const firstName = user?.name?.split(" ")[0] || "there";
+  const isNew = user?.isNew === true;
+
+  // Clear isNew flag after reading so notification only shows once
+  if (isNew && stored) {
+    const parsed = JSON.parse(stored);
+    localStorage.setItem(
+      "mirabit_user",
+      JSON.stringify({ ...parsed, isNew: false }),
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Greeting */}
       <div>
-        <p className="text-sm text-muted-foreground">Welcome back 👋</p>
+        {isNew && (
+          <div className="mb-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-3 flex items-center gap-3">
+            <span className="text-2xl">🎉</span>
+            <div>
+              <p className="font-semibold text-sm">Welcome bonus!</p>
+              <p className="text-xs text-white/90">
+                You've received 2,000 sats to get started.
+              </p>
+            </div>
+          </div>
+        )}
+        <p className="text-sm text-muted-foreground">
+          {isNew ? `Welcome, ${firstName} 👋` : `Welcome back, ${firstName} 👋`}
+        </p>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
           Let's grow your savings today.
         </h1>
@@ -63,10 +90,30 @@ export default function Dashboard() {
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <QuickAction to="/app/savings" label="Save" Icon={PiggyBank} tone="from-orange-500 to-rose-500" />
-        <QuickAction to="/app/convert" label="Convert" Icon={ArrowLeftRight} tone="from-blue-500 to-violet-500" />
-        <QuickAction to="/app/pay" label="Pay" Icon={QrCode} tone="from-emerald-500 to-teal-500" />
-        <QuickAction to="/app/learn" label="Learn" Icon={GraduationCap} tone="from-amber-500 to-yellow-500" />
+        <QuickAction
+          to="/app/savings"
+          label="Save"
+          Icon={PiggyBank}
+          tone="from-orange-500 to-rose-500"
+        />
+        <QuickAction
+          to="/app/convert"
+          label="Convert"
+          Icon={ArrowLeftRight}
+          tone="from-blue-500 to-violet-500"
+        />
+        <QuickAction
+          to="/app/pay"
+          label="Pay"
+          Icon={QrCode}
+          tone="from-emerald-500 to-teal-500"
+        />
+        <QuickAction
+          to="/app/learn"
+          label="Learn"
+          Icon={GraduationCap}
+          tone="from-amber-500 to-yellow-500"
+        />
       </div>
 
       {/* Top up + low-balance helper */}
@@ -142,7 +189,11 @@ function TopUpCard() {
       setAmount("");
       setOpen(false);
     } catch (e) {
-      toast({ title: "Couldn't top up", description: (e as Error).message, variant: "destructive" });
+      toast({
+        title: "Couldn't top up",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -175,7 +226,10 @@ function TopUpCard() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="topup-currency">Currency</Label>
-                  <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
+                  <Select
+                    value={currency}
+                    onValueChange={(v) => setCurrency(v as Currency)}
+                  >
                     <SelectTrigger id="topup-currency" className="mt-1.5">
                       <SelectValue />
                     </SelectTrigger>
@@ -199,19 +253,22 @@ function TopUpCard() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {(currency === "NGN" ? [5000, 10000, 25000] : currency === "USDT" ? [10, 25, 50] : [0.0005, 0.001, 0.005]).map(
-                  (v) => (
-                    <Button
-                      key={v}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAmount(String(v))}
-                    >
-                      +{CURRENCY_META[currency].symbol}
-                      {v.toLocaleString()}
-                    </Button>
-                  ),
-                )}
+                {(currency === "NGN"
+                  ? [5000, 10000, 25000]
+                  : currency === "USDT"
+                    ? [10, 25, 50]
+                    : [0.0005, 0.001, 0.005]
+                ).map((v) => (
+                  <Button
+                    key={v}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAmount(String(v))}
+                  >
+                    +{CURRENCY_META[currency].symbol}
+                    {v.toLocaleString()}
+                  </Button>
+                ))}
               </div>
             </div>
             <DialogFooter>
@@ -243,7 +300,10 @@ function SavingsTipCard({ balance }: { balance: number }) {
         </p>
         <div className="mt-3 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            Your BTC savings: <span className="font-semibold text-foreground">{balance.toFixed(6)} ₿</span>
+            Your BTC savings:{" "}
+            <span className="font-semibold text-foreground">
+              {balance.toFixed(6)} ₿
+            </span>
           </span>
           <Button asChild variant="ghost" size="sm" className="gap-1">
             <Link to="/app/savings">
