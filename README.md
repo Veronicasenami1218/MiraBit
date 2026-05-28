@@ -21,53 +21,56 @@
 
 **MiraBit** (*Ominira* — Yoruba for *Freedom* — combined with *Bitcoin*) is an open-source, student-focused Bitcoin Lightning wallet that makes Bitcoin savings, payments, and financial access simple and inclusive for students in Nigeria and beyond. It can be used offline to carry out transactions during poor network conditions on campuses or when students run out of mobile data. Once the user reconnects to the internet, all offline transactions are automatically synced.
 
-Problem
+## Problem
 Many students face:
 
-Difficulty saving consistently
-Limited access to stable digital finance
-Challenges with online payments
-Poor internet connectivity
-Lack of beginner-friendly crypto education
-Solution
+- Difficulty saving consistently
+- Limited access to stable digital finance
+- Challenges with online payments
+- Poor internet connectivity
+- Lack of beginner-friendly crypto education
+
+## Solution
 MiraBit provides an accessible platform where students can:
 
-Save with Naira or USDT and convert to BTC
-Pay for services using Bitcoin
-Convert between BTC, Naira, and USDT
-Use offline savings mode/offline access
-Make fast QR code payments
-Learn Bitcoin basics through a beginner-friendly learning mode
-Core Features
-1. BTC Savings
+- Save with Naira or USDT and convert to BTC
+- Pay for services using Bitcoin
+- Convert between BTC, Naira, and USDT
+- Use offline savings mode/offline access
+- Make fast QR code payments
+- Learn Bitcoin basics through a beginner-friendly learning mode
+
+## Core Features
+### 1. BTC Savings
 Users can save in Naira or USDT and convert funds into Bitcoin for better value preservation and digital financial growth.
 
-2. BTC Payments
+### 2. BTC Payments
 Students can pay for services securely and seamlessly using Bitcoin.
 
-3. Currency Conversion
+### 3. Currency Conversion
 Supports:
 
-BTC ↔ Naira
-BTC ↔ USDT
-USDT ↔ Naira
-4. Offline Savings Mode
+- BTC ↔ Naira
+- BTC ↔ USDT
+- USDT ↔ Naira
+
+### 4. Offline Savings Mode
 Allows users to access savings features and queue activities offline until internet connection is restored.
 
-5. QR Payments
+### 5. QR Payments
 Enables quick and easy Bitcoin payments through QR code scanning.
 
-6. Beginner Learning Mode
+### 6. Beginner Learning Mode
 Provides simple educational content to help beginners understand Bitcoin and digital finance.
 
-Target Audience
+## Target Audience
 University students
 Young people interested in digital finance
 Beginner crypto users
 Goal
 To promote financial freedom, digital savings, and accessible Bitcoin adoption for students.
 
-The platform combines three powerful technologies:
+## The platform combines three powerful technologies:
 
 | Layer | Technology | Role |
 |---|---|---|
