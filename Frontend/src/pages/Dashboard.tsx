@@ -8,7 +8,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSeoMeta } from "@unhead/react";
 import {
   Dialog,
@@ -43,49 +43,163 @@ export default function Dashboard() {
       "Save with Naira or USDT, convert to Bitcoin, pay with QR codes and learn the basics — all in one app for students.",
   });
 
-  const { wallet, transactions } = useWallet();
+  const { wallet, transactions, deposit } = useWallet();
+  const { toast } = useToast();
   const [displayCurrency, setDisplayCurrency] = useState<Currency>("NGN");
 
+  // Initialize profile reactively from local storage
+  const [userData, setUserData] = useState(() => {
+    const stored = localStorage.getItem("mirabit_user");
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  const firstName = userData?.name?.split(" ")[0] || "there";
+  const isNew = userData?.isNew === true;
+
+  // Listen for login/signup storage sync transmissions instantly
+  useEffect(() => {
+    const syncUser = () => {
+      const stored = localStorage.getItem("mirabit_user");
+      if (stored) {
+        setUserData(JSON.parse(stored));
+      }
+    };
+
+    syncUser();
+
+    window.addEventListener("storage", syncUser);
+    window.addEventListener("mirabit_auth_update", syncUser);
+
+    return () => {
+      window.removeEventListener("storage", syncUser);
+      window.removeEventListener("mirabit_auth_update", syncUser);
+    };
+  }, []);
+
+  // Handle claiming the welcome bonus safely
+  const handleClaimBonus = () => {
+    if (!userData) return;
+
+    try {
+      const BONUS_SATS_IN_BTC = 0.00002; // Exactly 2,000 satoshis
+
+      // Credit funds directly into the wallet engine context
+      deposit("BTC", BONUS_SATS_IN_BTC, "🎁 Welcome Bonus");
+
+      // Update storage settings so the banner drops cleanly out of sight
+      const updatedUser = { ...userData, isNew: false };
+      localStorage.setItem("mirabit_user", JSON.stringify(updatedUser));
+      setUserData(updatedUser);
+
+      toast({
+        title: "Bonus Claimed! 🎉",
+        description:
+          "2,000 sats have been successfully credited to your Bitcoin balance.",
+      });
+    } catch (error) {
+      toast({
+        title: "Claim failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      {/* Greeting */}
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Greeting & Interactive Claim Banner */}
       <div>
-        <p className="text-sm text-muted-foreground">Welcome back 👋</p>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+        {isNew && (
+          <div className="mb-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg border border-orange-400/20 animate-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center gap-3.5">
+              <span className="text-3xl shrink-0">🎉</span>
+              <div>
+                <p className="font-bold text-sm">Welcome bonus waiting!</p>
+                <p className="text-xs text-white/90 mt-0.5">
+                  You've received 2,000 sats to kickstart your decentralized
+                  student savings.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handleClaimBonus}
+              size="sm"
+              className="bg-white text-orange-600 hover:bg-orange-50 font-extrabold shadow-sm shrink-0 self-start sm:self-center px-5 h-9 rounded-xl transition-transform active:scale-95"
+            >
+              Accept Bonus
+            </Button>
+          </div>
+        )}
+        <p className="text-sm text-slate-500 dark:text-muted-foreground font-medium">
+          {isNew ? `Welcome, ${firstName} 👋` : `Welcome back, ${firstName} 👋`}
+        </p>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-0.5">
           Let's grow your savings today.
         </h1>
       </div>
 
+      {/* Adaptive Balance Component */}
       <BalanceCard
         displayCurrency={displayCurrency}
         onChangeDisplayCurrency={setDisplayCurrency}
       />
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <QuickAction to="/app/savings" label="Save" Icon={PiggyBank} tone="from-orange-500 to-rose-500" />
-        <QuickAction to="/app/convert" label="Convert" Icon={ArrowLeftRight} tone="from-blue-500 to-violet-500" />
-        <QuickAction to="/app/pay" label="Pay" Icon={QrCode} tone="from-emerald-500 to-teal-500" />
-        <QuickAction to="/app/learn" label="Learn" Icon={GraduationCap} tone="from-amber-500 to-yellow-500" />
+      {/* Quick actions grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <QuickAction
+          to="/app/savings"
+          label="Save"
+          Icon={PiggyBank}
+          tone="from-orange-500 to-rose-500"
+        />
+        <QuickAction
+          to="/app/convert"
+          label="Convert"
+          Icon={ArrowLeftRight}
+          tone="from-blue-500 to-violet-500"
+        />
+        <QuickAction
+          to="/app/pay"
+          label="Pay"
+          Icon={QrCode}
+          tone="from-emerald-500 to-teal-500"
+        />
+        <QuickAction
+          to="/app/learn"
+          label="Learn"
+          Icon={GraduationCap}
+          tone="from-amber-500 to-yellow-500"
+        />
       </div>
 
-      {/* Top up + low-balance helper */}
+      {/* Top up + low-balance helper panel */}
       <div className="grid md:grid-cols-2 gap-4">
         <TopUpCard />
         <SavingsTipCard balance={wallet.BTC} />
       </div>
 
-      {/* Recent activity */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Recent activity</h2>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/app/activity" className="gap-1">
-              View all <ArrowRight className="h-4 w-4" />
+      {/* Recent activity log stack */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            Recent activity
+          </h2>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="text-slate-500 dark:text-muted-foreground hover:text-slate-900"
+          >
+            <Link to="/app/activity" className="gap-1 font-semibold text-xs">
+              View all <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
         </div>
-        <TransactionList transactions={transactions} limit={5} />
+        <Card className="rounded-2xl overflow-hidden border-slate-200/60 dark:border-slate-800/50 shadow-sm">
+          <CardContent className="p-0">
+            <TransactionList transactions={transactions} limit={5} />
+          </CardContent>
+        </Card>
       </section>
     </div>
   );
@@ -105,15 +219,17 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className="group rounded-2xl border bg-card p-4 hover:shadow-md transition-all hover:-translate-y-0.5"
+      className="group rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-card p-4 hover:shadow-md dark:hover:bg-slate-900/40 transition-all hover:-translate-y-0.5 duration-200"
     >
       <div
-        className={`h-10 w-10 rounded-xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow`}
+        className={`h-10 w-10 rounded-xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-sm`}
       >
         <Icon className="h-5 w-5" />
       </div>
-      <div className="mt-3 font-semibold text-sm">{label}</div>
-      <div className="text-xs text-muted-foreground mt-0.5 group-hover:text-foreground transition-colors">
+      <div className="mt-3 font-bold text-sm text-slate-900 dark:text-white">
+        {label}
+      </div>
+      <div className="text-[11px] text-slate-400 dark:text-muted-foreground mt-0.5 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
         Tap to open
       </div>
     </Link>
@@ -142,41 +258,60 @@ function TopUpCard() {
       setAmount("");
       setOpen(false);
     } catch (e) {
-      toast({ title: "Couldn't top up", description: (e as Error).message, variant: "destructive" });
+      toast({
+        title: "Couldn't top up",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Plus className="h-4 w-4 text-primary" />
+    <Card className="rounded-2xl border-slate-200/60 dark:border-slate-800/50 shadow-sm flex flex-col justify-between">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
+          <Plus className="h-4 w-4 text-orange-500" />
           Top up your wallet
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
+      <CardContent className="space-y-4">
+        <p className="text-sm text-slate-500 dark:text-muted-foreground leading-relaxed">
           Fund your MiraBit wallet to start saving, paying or converting. (Demo
           mode adds funds instantly.)
         </p>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full">Add funds</Button>
+            <Button className="w-full h-11 font-bold rounded-xl shadow-sm bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+              Add funds
+            </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-md rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Top up wallet</DialogTitle>
+              <DialogTitle className="font-bold text-lg">
+                Top up wallet
+              </DialogTitle>
               <DialogDescription>
                 Choose a currency and amount. This is a simulated top-up for the
-                demo.
+                demo sandbox environment.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-2">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="topup-currency">Currency</Label>
-                  <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
-                    <SelectTrigger id="topup-currency" className="mt-1.5">
+                  <Label
+                    htmlFor="topup-currency"
+                    className="font-semibold text-xs"
+                  >
+                    Currency
+                  </Label>
+                  <Select
+                    value={currency}
+                    onValueChange={(v) => setCurrency(v as Currency)}
+                  >
+                    <SelectTrigger
+                      id="topup-currency"
+                      className="mt-1.5 h-11 rounded-xl"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -187,38 +322,56 @@ function TopUpCard() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="topup-amount">Amount</Label>
+                  <Label
+                    htmlFor="topup-amount"
+                    className="font-semibold text-xs"
+                  >
+                    Amount
+                  </Label>
                   <Input
                     id="topup-amount"
                     inputMode="decimal"
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11 rounded-xl"
                   />
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {(currency === "NGN" ? [5000, 10000, 25000] : currency === "USDT" ? [10, 25, 50] : [0.0005, 0.001, 0.005]).map(
-                  (v) => (
-                    <Button
-                      key={v}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAmount(String(v))}
-                    >
-                      +{CURRENCY_META[currency].symbol}
-                      {v.toLocaleString()}
-                    </Button>
-                  ),
-                )}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {(currency === "NGN"
+                  ? [5000, 10000, 25000]
+                  : currency === "USDT"
+                    ? [10, 25, 50]
+                    : [0.0005, 0.001, 0.005]
+                ).map((v) => (
+                  <Button
+                    key={v}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAmount(String(v))}
+                    className="rounded-lg h-8 text-[11px] font-bold"
+                  >
+                    +{CURRENCY_META[currency].symbol}
+                    {v.toLocaleString()}
+                  </Button>
+                ))}
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setOpen(false)}
+                className="rounded-xl h-11 font-semibold"
+              >
                 Cancel
               </Button>
-              <Button onClick={handle}>Confirm top-up</Button>
+              <Button
+                onClick={handle}
+                className="rounded-xl h-11 font-bold bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                Confirm top-up
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -229,25 +382,33 @@ function TopUpCard() {
 
 function SavingsTipCard({ balance }: { balance: number }) {
   return (
-    <Card className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/20 border-orange-200/50 dark:border-orange-900/40">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4 text-primary" />
+    <Card className="rounded-2xl bg-gradient-to-br from-orange-50/50 to-amber-50/40 dark:from-orange-950/20 dark:to-amber-950/10 border-orange-200/40 dark:border-orange-900/30 shadow-sm flex flex-col justify-between">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base font-bold text-orange-600 dark:text-orange-400">
+          <Sparkles className="h-4 w-4" />
           Tip of the day
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
+      <CardContent className="space-y-4">
+        <p className="text-sm text-slate-500 dark:text-muted-foreground leading-relaxed">
           Even saving ₦500 a week into Bitcoin builds the habit. Small,
           consistent savings compound over time.
         </p>
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            Your BTC savings: <span className="font-semibold text-foreground">{balance.toFixed(6)} ₿</span>
+        <div className="mt-1 flex items-center justify-between border-t border-slate-200/50 dark:border-slate-800/40 pt-3">
+          <span className="text-xs text-slate-500 dark:text-muted-foreground font-medium">
+            Your BTC savings:{" "}
+            <span className="font-extrabold text-slate-900 dark:text-white tabular-nums">
+              {balance.toFixed(6)} ₿
+            </span>
           </span>
-          <Button asChild variant="ghost" size="sm" className="gap-1">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="gap-1 h-8 rounded-lg text-orange-600 dark:text-orange-400 hover:text-orange-700 font-bold text-xs px-2.5"
+          >
             <Link to="/app/savings">
-              Save now <ArrowRight className="h-4 w-4" />
+              Save now <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
         </div>
