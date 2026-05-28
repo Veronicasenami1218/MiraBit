@@ -421,33 +421,75 @@ export default function Landing() {
         </div>
       </section>
       {/* Testimonials */}
-      <section className="container max-w-6xl py-20 md:py-28">
-        <div className="text-center">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Built for the campus crowd
-          </h2>
-          <p className="mt-3 text-muted-foreground">
-            What early users are saying.
-          </p>
+      {/* Testimonials */}
+      {/* Testimonials */}
+      <section className="py-20 md:py-28 overflow-hidden">
+        <div className="container max-w-6xl">
+          {/* Header Content */}
+          <div
+            className={`text-center transition-all duration-1000 ease-out ${
+              isMounted
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-8"
+            }`}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Built for the campus crowd
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              What early users are saying.
+            </p>
+          </div>
         </div>
-        <div className="mt-10 grid md:grid-cols-3 gap-4">
-          {TESTIMONIALS.map((t) => (
-            <div
-              key={t.name}
-              className="rounded-2xl border bg-card p-6 flex flex-col"
-            >
-              <p className="text-base leading-relaxed flex-1">"{t.quote}"</p>
-              <div className="mt-5 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-xl">
-                  {t.emoji}
-                </div>
-                <div>
-                  <div className="text-sm font-semibold">{t.name}</div>
-                  <div className="text-xs text-muted-foreground">{t.role}</div>
+
+        {/* The Infinite Sliding Marquee */}
+        <div className="relative mt-12 w-full flex items-center">
+          {/* Custom CSS for the infinite scroll */}
+          <style>{`
+            @keyframes marquee {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(calc(-50% - 12px)); }
+            }
+            .animate-marquee {
+              animation: marquee 20s linear infinite;
+            }
+          `}</style>
+
+          {/* Faded edges to make them magically appear and disappear */}
+          <div className="absolute inset-y-0 left-0 w-16 md:w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-16 md:w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+
+          {/* The scrolling track - pauses on hover! */}
+          <div className="flex w-max animate-marquee hover:[animation-play-state:paused] gap-6 px-6">
+            {/* We duplicate the testimonials multiple times to create a seamless infinite loop */}
+            {[
+              ...TESTIMONIALS,
+              ...TESTIMONIALS,
+              ...TESTIMONIALS,
+              ...TESTIMONIALS,
+            ].map((t, i) => (
+              <div
+                key={`${t.name}-${i}`}
+                // Fixed width so they slide cleanly, kept the snappy hover effects!
+                className="w-[300px] md:w-[350px] shrink-0 group rounded-2xl border bg-card p-6 flex flex-col hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-200 ease-out cursor-pointer z-0 hover:z-20"
+              >
+                <p className="text-base leading-relaxed flex-1 transition-colors duration-200 group-hover:text-foreground">
+                  "{t.quote}"
+                </p>
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-xl transition-all duration-200 group-hover:scale-125 group-hover:rotate-12 group-hover:bg-orange-500/10">
+                    {t.emoji}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold">{t.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {t.role}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
