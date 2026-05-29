@@ -1,5 +1,5 @@
 import { useSeoMeta } from "@unhead/react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useInView } from "@/hooks/useInView";
 import { useEffect, useState } from "react";
 import {
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
+import { SimpleAuthDialog } from "@/components/auth/SimpleAuthDialog";
 
 const FEATURES = [
   {
@@ -180,6 +181,25 @@ function StepCountUp({
 }
 
 export default function Landing() {
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authRedirectTo, setAuthRedirectTo] = useState("/app");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Helper to open auth modal and remember where the user wanted to go
+  const handleOpenAuth = (path = "/app") => {
+    setAuthRedirectTo(path);
+    setIsAuthOpen(true);
+  };
+
+  // Auto-open modal if URL contains ?login=true (bounced from a protected page)
+  useEffect(() => {
+    if (searchParams.get("login") === "true") {
+      handleOpenAuth("/app");
+      // Clean up the URL so it looks clean again
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+
   const heroCard = useInView();
   const problems = useInView();
   const features = useInView();
@@ -194,19 +214,23 @@ export default function Landing() {
   });
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className={`min-h-screen bg-background text-foreground transition-[filter] duration-500 ${isAuthOpen ? "blur-md brightness-75" : ""}`}
+    >
       {/* Header */}
       <header className="absolute top-0 inset-x-0 z-20">
         <div className="container max-w-6xl flex items-center justify-between h-16">
           <Logo />
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" className="hidden sm:inline-flex">
-              <Link to="/app/learn">Learn</Link>
+            <Button
+              variant="ghost"
+              className="hidden sm:inline-flex"
+              onClick={() => handleOpenAuth("/app/learn")}
+            >
+              Learn
             </Button>
-            <Button asChild>
-              <Link to="/app">
-                Open app <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Link>
+            <Button onClick={() => handleOpenAuth("/app")}>
+              Open app <ArrowRight className="h-4 w-4 ml-1.5" />
             </Button>
           </div>
         </div>
@@ -235,18 +259,20 @@ export default function Landing() {
                 teaches you the basics — even on the worst campus wifi.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <Button asChild size="lg" className="h-12 text-base px-6">
-                  <Link to="/app">
-                    Start saving <ArrowRight className="h-5 w-5 ml-1.5" />
-                  </Link>
+                <Button
+                  size="lg"
+                  className="h-12 text-base px-6"
+                  onClick={() => handleOpenAuth("/app")}
+                >
+                  Start saving <ArrowRight className="h-5 w-5 ml-1.5" />
                 </Button>
                 <Button
-                  asChild
                   size="lg"
                   variant="outline"
                   className="h-12 text-base px-6"
+                  onClick={() => handleOpenAuth("/app/learn")}
                 >
-                  <Link to="/app/learn">Explore lessons</Link>
+                  Explore lessons
                 </Button>
               </div>
               <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
@@ -355,14 +381,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Problem statement */}
+      {/* Problem Statement */}
       <section className="border-y bg-muted/30">
         <div className="container max-w-5xl py-16 md:py-20">
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div>
-              <p className="text-sm font-semibold text-primary uppercase tracking-wider">
-                The problem
-              </p>
               <h2 className="mt-2 text-2xl md:text-4xl font-bold tracking-tight">
                 Students are locked out of digital finance.
               </h2>
@@ -395,7 +418,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features / Solution Cards */}
       <section className="container max-w-6xl py-20 md:py-28">
         <div
           ref={features.ref}
@@ -405,9 +428,6 @@ export default function Landing() {
               : "opacity-0 translate-y-8"
           }`}
         >
-          <p className="text-sm font-semibold text-primary uppercase tracking-wider">
-            The solution
-          </p>
           <h2 className="mt-2 text-3xl md:text-5xl font-bold tracking-tight">
             Everything you need, in one app.
           </h2>
@@ -433,11 +453,11 @@ export default function Landing() {
             ) => (
               <div
                 key={title}
-                className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl ${hoverShadow} hover:-translate-y-2 hover:scale-105 ${hoverBorder} transition-[transform,box-shadow,border-color,opacity] duration-100 ease-out z-10 hover:z-20
-                  ${features.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"}
-                `}
+                className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl ${hoverShadow} hover:-translate-y-2 hover:scale-105 ${hoverBorder} transition-all duration-700 ease-out z-10 hover:z-20
+  ${features.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-16"}
+`}
                 style={{
-                  transitionDelay: features.inView ? `${i * 150}ms` : "0ms",
+                  transitionDelay: features.inView ? `${i * 300}ms` : "0ms",
                 }}
               >
                 <div
@@ -569,7 +589,7 @@ export default function Landing() {
               100% { transform: translateX(calc(-50% - 12px)); }
             }
             .animate-marquee {
-              animation: marquee 20s linear infinite;
+              animation: marquee 80s linear infinite;
             }
           `}</style>
           <div className="absolute inset-y-0 left-0 w-16 md:w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
@@ -607,44 +627,54 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
+      {/* CTA */}
+      {/* CTA */}
       <section className="container max-w-5xl pb-24">
         <div
           ref={cta.ref}
-          className={`relative group overflow-hidden rounded-3xl p-10 md:p-16 text-center text-black transition-all duration-700 ease-out hover:shadow-2xl hover:shadow-orange-500/20 hover:-translate-y-2
+          className={`mx-auto max-w-4xl rounded-[2rem] overflow-hidden border bg-card shadow-2xl transition-all duration-700 ease-out hover:shadow-orange-500/20 hover:-translate-y-2
             ${cta.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"}
           `}
           style={{ transitionDelay: cta.inView ? "300ms" : "0ms" }}
         >
+          {/* Top Half: Vibrant Gradient */}
           <div
-            className="absolute inset-0 -z-0 transition-transform duration-1000 ease-out group-hover:scale-110"
+            className="px-6 py-12 md:p-16 text-center text-white relative"
             style={{
               background:
-                "linear-gradient(135deg, hsl(28 96% 54%) 0%, hsl(18 92% 48%) 50%, hsl(340 80% 50%) 100%)",
+                "linear-gradient(135deg, hsl(28 96% 54%) 0%, hsl(18 92% 48%) 60%, hsl(340 80% 50%) 100%)",
             }}
-          />
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/10 px-3 py-1 text-xs font-bold uppercase tracking-wider mb-6 backdrop-blur-md">
-              <Sparkles className="h-3 w-3" /> Takes under 60 seconds
+          >
+            <div className="relative z-10">
+              {/* UPDATED: Solid white background with orange text */}
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider mb-6 shadow-sm text-orange-600">
+                <Sparkles className="h-3.5 w-3.5" /> Takes under 60 seconds
+              </div>
+
+              <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+                Take control of your money.
+              </h2>
+              <p className="mt-5 text-white/90 max-w-xl mx-auto text-lg leading-relaxed font-medium">
+                Stop watching your savings lose value. Create your free account
+                today to start stacking Bitcoin, paying instantly on campus, and
+                earning rewards.
+              </p>
             </div>
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
-              Take control of your money.
-            </h2>
-            <p className="mt-5 text-black/90 max-w-xl mx-auto text-lg leading-relaxed">
-              Stop watching your savings lose value. Create your free account
-              today to start stacking Bitcoin, paying instantly on campus, and
-              earning rewards.
-            </p>
+          </div>
+
+          {/* Bottom Half: Clean White Card */}
+          <div className="bg-card p-8 md:p-10 flex flex-col items-center justify-center border-t border-orange-500/10">
             <Button
-              asChild
               size="lg"
-              variant="secondary"
-              className="group/btn mt-8 h-14 text-base px-8 font-bold bg-white text-orange-600 hover:bg-white/95 transition-all duration-200 hover:scale-105 shadow-xl hover:shadow-white/20"
+              onClick={() => handleOpenAuth("/app")}
+              className="group/btn h-14 text-base px-10 font-bold rounded-2xl bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white shadow-lg hover:shadow-orange-500/25 transition-all duration-200 hover:scale-105 border-0"
             >
-              <Link to="/app">
-                Create free account
-                <ArrowRight className="h-5 w-5 ml-2 transition-transform duration-200 group-hover/btn:translate-x-1.5" />
-              </Link>
+              Create free account
+              <ArrowRight className="h-5 w-5 ml-2 transition-transform duration-200 group-hover/btn:translate-x-1.5" />
             </Button>
+            <p className="mt-4 text-xs text-muted-foreground font-medium">
+              Join thousands of students already saving.
+            </p>
           </div>
         </div>
       </section>
@@ -673,20 +703,20 @@ export default function Landing() {
               </h4>
               <ul className="space-y-3 text-sm text-muted-foreground">
                 <li>
-                  <Link
-                    to="/app"
+                  <button
+                    onClick={() => handleOpenAuth("/app")}
                     className="hover:text-orange-500 transition-colors"
                   >
                     Launch App
-                  </Link>
+                  </button>
                 </li>
                 <li>
-                  <Link
-                    to="/app/learn"
+                  <button
+                    onClick={() => handleOpenAuth("/app/learn")}
                     className="hover:text-orange-500 transition-colors"
                   >
                     Learn & Earn
-                  </Link>
+                  </button>
                 </li>
                 <li>
                   <Link
@@ -747,6 +777,13 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Auth Dialog directly on the landing page */}
+      <SimpleAuthDialog
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        redirectPath={authRedirectTo}
+      />
     </div>
   );
 }
