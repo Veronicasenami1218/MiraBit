@@ -502,10 +502,17 @@ function useLocalWallet(): UseWalletResult {
   const saveToBtc = useCallback(
     (from: Currency, amount: number, goalName?: string): Transaction => {
       if (amount <= 0) throw new Error("Amount must be positive");
-      if ((wallet[from] ?? 0) < amount)
+      if ((wallet[from] ?? 0) < amount - 1e-10)
         throw new Error(`Insufficient ${from} balance`);
-      const btc = convert(amount, from, "BTC", rates);
-      applyToWallet({ [from]: -amount, BTC: btc } as Partial<Wallet>);
+
+      // If saving from BTC directly, no conversion needed — just record the tx
+      const btc = from === "BTC" ? amount : convert(amount, from, "BTC", rates);
+      const walletDelta: Partial<Wallet> =
+        from === "BTC"
+          ? {} // BTC is already in the wallet; recording the intent is enough
+          : ({ [from]: -amount, BTC: btc } as Partial<Wallet>);
+
+      applyToWallet(walletDelta);
       return recordTransaction({
         type: "save",
         fromCurrency: from,
