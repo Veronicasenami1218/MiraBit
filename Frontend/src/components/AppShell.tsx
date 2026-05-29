@@ -1,4 +1,10 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   Home,
   PiggyBank,
@@ -19,8 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { SimpleAuthDialog } from "@/components/auth/SimpleAuthDialog";
+import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
   { to: "/app", label: "Home", icon: Home, exact: true },
@@ -32,16 +37,27 @@ const NAV_ITEMS = [
 
 export function AppShell() {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [authOpen, setAuthOpen] = useState(true);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  // 1. Check local storage
+  const hasUser = localStorage.getItem("mirabit_user");
+
+  // 2. Strict Redirect: If no user, bounce them to the landing page immediately
+  useEffect(() => {
+    if (!hasUser) {
+      navigate("/?login=true", { replace: true });
+    }
+  }, [hasUser, navigate]);
+
+  // 3. Prevent the app shell from flashing on the screen while redirecting
+  if (!hasUser) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <SimpleAuthDialog isOpen={authOpen} onClose={() => setAuthOpen(false)} />
-
-      <div
-        className={authOpen ? "blur-sm pointer-events-none select-none" : ""}
-      >
+      <div>
         <OfflineBanner />
 
         {/* Top bar */}

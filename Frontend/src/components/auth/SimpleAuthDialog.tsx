@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +17,16 @@ import {
 interface SimpleAuthDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  redirectPath?: string;
 }
 
-export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
+export function SimpleAuthDialog({
+  isOpen,
+  onClose,
+  redirectPath = "/app",
+}: SimpleAuthDialogProps) {
+  const navigate = useNavigate();
+
   const [step, setStep] = useState<"menu" | "create" | "restore" | "success">(
     "menu",
   );
@@ -54,6 +62,7 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
+    navigate(redirectPath); // Redirects to the specifically requested page!
     onClose();
   };
 
@@ -71,6 +80,7 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
+    navigate(redirectPath); // Redirects to the specifically requested page!
     onClose();
   };
 
@@ -82,12 +92,27 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
     setRecoveryPhrase("");
   };
 
+  const instantClose = () => {
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) instantClose();
+      }}
+    >
       <DialogContent
         className="w-[90vw] max-w-[400px] rounded-[2rem] p-0 gap-0 overflow-hidden bg-background border-2 [&>button]:hidden"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          e.preventDefault();
+          instantClose();
+        }}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          instantClose();
+        }}
       >
         <div className="p-6 md:p-8">
           {/* STEP 1: The Main Menu */}
