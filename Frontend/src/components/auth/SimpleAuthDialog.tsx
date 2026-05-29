@@ -12,6 +12,8 @@ import {
   Sparkles,
   ArrowLeft,
   Gift,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface SimpleAuthDialogProps {
@@ -31,27 +33,27 @@ export function SimpleAuthDialog({
     "menu",
   );
 
-  // Wallet creation states
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
-
-  // Wallet restoration state
+  const [confirmPin, setConfirmPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
   const [recoveryPhrase, setRecoveryPhrase] = useState("");
-
   const [error, setError] = useState("");
 
   const handleCreateWallet = () => {
-    if (pin.length !== 4) {
-      setError("Please enter a 4-digit PIN.");
+    if (pin.length < 4) {
+      setError("PIN must be at least 4 digits.");
+      return;
+    }
+    if (pin !== confirmPin) {
+      setError("PINs do not match.");
       return;
     }
     setError("");
-    // Move to the congratulatory bonus screen instead of closing immediately
     setStep("success");
   };
 
   const handleAcceptBonus = () => {
-    // Save to local storage and officially let them into the app
     localStorage.setItem(
       "mirabit_user",
       JSON.stringify({
@@ -62,7 +64,7 @@ export function SimpleAuthDialog({
       }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
-    navigate(redirectPath); // Redirects to the specifically requested page!
+    navigate(redirectPath);
     onClose();
   };
 
@@ -71,16 +73,12 @@ export function SimpleAuthDialog({
       setError("Recovery phrase must be at least 12 words.");
       return;
     }
-
     localStorage.setItem(
       "mirabit_user",
-      JSON.stringify({
-        name: "Restored User",
-        isNew: false,
-      }),
+      JSON.stringify({ name: "Restored User", isNew: false }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
-    navigate(redirectPath); // Redirects to the specifically requested page!
+    navigate(redirectPath);
     onClose();
   };
 
@@ -88,34 +86,30 @@ export function SimpleAuthDialog({
     setStep("menu");
     setError("");
     setPin("");
+    setConfirmPin("");
     setUsername("");
     setRecoveryPhrase("");
-  };
-
-  const instantClose = () => {
-    onClose();
   };
 
   return (
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) instantClose();
+        if (!open) onClose();
       }}
     >
       <DialogContent
         className="w-[90vw] max-w-[400px] rounded-[2rem] p-0 gap-0 overflow-hidden bg-background border-2 [&>button]:hidden"
         onInteractOutside={(e) => {
           e.preventDefault();
-          instantClose();
+          onClose();
         }}
         onEscapeKeyDown={(e) => {
           e.preventDefault();
-          instantClose();
+          onClose();
         }}
       >
         <div className="p-6 md:p-8">
-          {/* STEP 1: The Main Menu */}
           {step === "menu" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col items-center text-center">
               <div className="py-8 w-full mb-6 bg-muted/30 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden">
@@ -123,14 +117,12 @@ export function SimpleAuthDialog({
                 <div className="relative flex items-center justify-center gap-4">
                   <Sparkles className="h-4 w-4 text-orange-500" />
                   <Logo showWordmark={false} />
-
                   <div className="flex items-center gap-1.5 text-orange-500">
                     <Wallet className="h-8 w-8" />
                   </div>
                   <Sparkles className="h-4 w-4 text-orange-500" />
                 </div>
               </div>
-
               <h2 className="text-2xl font-extrabold tracking-tight">
                 MiraBit Wallet
               </h2>
@@ -138,18 +130,17 @@ export function SimpleAuthDialog({
                 Incredibly simple, secure, and private Bitcoin wallet for modern
                 users.
               </p>
-
               <div className="w-full mt-8 space-y-3">
                 <Button
                   onClick={() => setStep("create")}
-                  className="w-full h-12 text-base font-semibold rounded-2xl bg-foreground text-background hover:bg-foreground/90 transition-transform active:scale-95"
+                  className="w-full h-12 text-base font-semibold rounded-2xl bg-foreground text-background hover:bg-foreground/90"
                 >
                   Create wallet <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setStep("restore")}
-                  className="w-full h-12 text-base font-semibold rounded-2xl border-2 hover:bg-muted transition-transform active:scale-95"
+                  className="w-full h-12 text-base font-semibold rounded-2xl border-2"
                 >
                   I already have a wallet
                 </Button>
@@ -157,49 +148,65 @@ export function SimpleAuthDialog({
             </div>
           )}
 
-          {/* STEP 2: Create Secure Wallet */}
           {step === "create" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 ease-out">
-              <div className="flex justify-center mb-4">
-                <Logo showWordmark={false} />
-              </div>
               <h2 className="text-2xl font-bold text-center">
                 Create Secure Wallet
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground text-center mb-6">
-                Your wallet identity will be securely created for you.
-              </p>
-
-              <div className="space-y-4">
+              <div className="space-y-4 mt-6">
                 <div className="space-y-1.5">
-                  <Label htmlFor="username" className="text-muted-foreground">
-                    Username (optional)
-                  </Label>
+                  <Label htmlFor="username">Username</Label>
                   <Input
                     id="username"
                     placeholder="e.g. Satoshi"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="h-12 rounded-xl px-4"
+                    className="h-12 rounded-xl"
                   />
                 </div>
 
+                <div className="space-y-1.5 relative">
+                  <Label htmlFor="pin">Set PIN</Label>
+                  <div className="relative">
+                    <Input
+                      id="pin"
+                      type={showPin ? "text" : "password"}
+                      inputMode="numeric"
+                      placeholder="Enter PIN"
+                      value={pin}
+                      onChange={(e) => {
+                        setPin(e.target.value.replace(/\D/g, ""));
+                        setError("");
+                      }}
+                      className="h-12 rounded-xl pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPin(!showPin)}
+                      className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPin ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
-                  <Label htmlFor="pin" className="text-muted-foreground">
-                    Create PIN (4 digits)
-                  </Label>
+                  <Label htmlFor="confirmPin">Confirm PIN</Label>
                   <Input
-                    id="pin"
-                    type="password"
+                    id="confirmPin"
+                    type={showPin ? "text" : "password"}
                     inputMode="numeric"
-                    maxLength={4}
-                    placeholder="••••"
-                    value={pin}
+                    placeholder="Confirm PIN"
+                    value={confirmPin}
                     onChange={(e) => {
-                      setPin(e.target.value.replace(/\D/g, ""));
+                      setConfirmPin(e.target.value.replace(/\D/g, ""));
                       setError("");
                     }}
-                    className="h-12 rounded-xl text-2xl tracking-widest text-center"
+                    className="h-12 rounded-xl"
                   />
                 </div>
 
@@ -212,22 +219,18 @@ export function SimpleAuthDialog({
                 <div className="pt-2 space-y-2">
                   <Button
                     onClick={handleCreateWallet}
-                    className="w-full h-12 text-base font-bold rounded-xl"
+                    className="w-full h-12 rounded-xl font-bold"
                   >
                     Generate Wallet
                   </Button>
-                  <button
-                    onClick={goBack}
-                    className="w-full text-sm font-medium flex items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground py-2 transition-colors"
-                  >
-                    <ArrowLeft className="h-3 w-3" /> Back
-                  </button>
+                  <Button variant="ghost" onClick={goBack} className="w-full">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                  </Button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP 3: Success & Bonus Screen */}
           {step === "success" && (
             <div className="animate-in zoom-in-95 duration-500 ease-out flex flex-col items-center text-center">
               {/* Fun little ping animation for the gift icon */}
@@ -268,55 +271,29 @@ export function SimpleAuthDialog({
             </div>
           )}
 
-          {/* RESTORE EXISTING WALLET */}
           {step === "restore" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 ease-out">
-              <div className="flex justify-center mb-4 text-orange-500">
-                <ShieldAlert className="h-10 w-10" />
-              </div>
               <h2 className="text-2xl font-bold text-center">Restore Wallet</h2>
-              <p className="mt-2 text-sm text-muted-foreground text-center mb-6">
-                Enter your recovery phrase to restore your funds.
-              </p>
-
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="phrase" className="sr-only">
-                    Recovery Phrase
-                  </Label>
-                  <textarea
-                    id="phrase"
-                    placeholder="apple banana cherry..."
-                    value={recoveryPhrase}
-                    onChange={(e) => {
-                      setRecoveryPhrase(e.target.value);
-                      setError("");
-                    }}
-                    className="flex w-full rounded-xl border border-input bg-transparent px-4 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[100px] resize-none"
-                  />
-                </div>
-
-                {error && (
-                  <p className="text-sm text-destructive font-medium text-center">
-                    {error}
-                  </p>
-                )}
-
-                <div className="pt-2 space-y-2">
-                  <Button
-                    onClick={handleRestoreWallet}
-                    className="w-full h-12 text-base font-bold rounded-xl bg-foreground text-background hover:bg-foreground/90"
-                  >
-                    Restore wallet
-                  </Button>
-                  <button
-                    onClick={goBack}
-                    className="w-full text-sm font-medium flex items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground py-2 transition-colors"
-                  >
-                    <ArrowLeft className="h-3 w-3" /> Back
-                  </button>
-                </div>
-              </div>
+              <textarea
+                placeholder="Enter 12-word recovery phrase..."
+                value={recoveryPhrase}
+                onChange={(e) => setRecoveryPhrase(e.target.value)}
+                className="w-full mt-4 p-4 rounded-xl border min-h-[100px] resize-none"
+              />
+              {error && (
+                <p className="text-sm text-destructive text-center mt-2">
+                  {error}
+                </p>
+              )}
+              <Button
+                onClick={handleRestoreWallet}
+                className="w-full mt-4 h-12 rounded-xl font-bold"
+              >
+                Restore
+              </Button>
+              <Button variant="ghost" onClick={goBack} className="w-full mt-2">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+              </Button>
             </div>
           )}
         </div>
