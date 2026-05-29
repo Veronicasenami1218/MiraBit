@@ -60,7 +60,7 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
             Mira<span className="text-primary">Bit</span>
           </span>
           <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
-            Save. Convert. Pay
+            Save. Convert. Pay . Learn
           </span>
         </div>
       )}

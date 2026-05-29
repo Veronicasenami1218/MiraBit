@@ -45,7 +45,9 @@ export default function Dashboard() {
 
   const { wallet, transactions, deposit } = useWallet();
   const { toast } = useToast();
-  const [displayCurrency, setDisplayCurrency] = useState<Currency>("NGN");
+
+  // CHANGED: Default display currency is now BTC so the 2000 sats show immediately
+  const [displayCurrency, setDisplayCurrency] = useState<Currency>("BTC");
 
   // Initialize profile reactively from local storage
   const [userData, setUserData] = useState(() => {
@@ -54,7 +56,6 @@ export default function Dashboard() {
   });
 
   const firstName = userData?.name?.split(" ")[0] || "there";
-  const isNew = userData?.isNew === true;
 
   // Listen for login/signup storage sync transmissions instantly
   useEffect(() => {
@@ -76,62 +77,12 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Handle claiming the welcome bonus safely
-  const handleClaimBonus = () => {
-    if (!userData) return;
-
-    try {
-      const BONUS_SATS_IN_BTC = 0.00002; // Exactly 2,000 satoshis
-
-      // Credit funds directly into the wallet engine context
-      deposit("BTC", BONUS_SATS_IN_BTC, "🎁 Welcome Bonus");
-
-      // Update storage settings so the banner drops cleanly out of sight
-      const updatedUser = { ...userData, isNew: false };
-      localStorage.setItem("mirabit_user", JSON.stringify(updatedUser));
-      setUserData(updatedUser);
-
-      toast({
-        title: "Bonus Claimed! 🎉",
-        description:
-          "2,000 sats have been successfully credited to your Bitcoin balance.",
-      });
-    } catch (error) {
-      toast({
-        title: "Claim failed",
-        description: (error as Error).message,
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Greeting & Interactive Claim Banner */}
+      {/* Greeting */}
       <div>
-        {isNew && (
-          <div className="mb-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg border border-orange-400/20 animate-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center gap-3.5">
-              <span className="text-3xl shrink-0">🎉</span>
-              <div>
-                <p className="font-bold text-sm">Welcome bonus waiting!</p>
-                <p className="text-xs text-white/90 mt-0.5">
-                  You've received 2,000 sats to kickstart your decentralized
-                  student savings.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={handleClaimBonus}
-              size="sm"
-              className="bg-white text-orange-600 hover:bg-orange-50 font-extrabold shadow-sm shrink-0 self-start sm:self-center px-5 h-9 rounded-xl transition-transform active:scale-95"
-            >
-              Accept Bonus
-            </Button>
-          </div>
-        )}
         <p className="text-sm text-slate-500 dark:text-muted-foreground font-medium">
-          {isNew ? `Welcome, ${firstName} 👋` : `Welcome back, ${firstName} 👋`}
+          Welcome, {firstName} 👋
         </p>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-0.5">
           Let's grow your savings today.

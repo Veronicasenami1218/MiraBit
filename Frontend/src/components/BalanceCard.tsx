@@ -19,10 +19,24 @@ export function BalanceCard({
   const { wallet } = useWallet();
   const { rates } = useRates();
 
-  const totalInDisplay =
-    convert(wallet.BTC, "BTC", displayCurrency, rates) +
-    convert(wallet.NGN, "NGN", displayCurrency, rates) +
-    convert(wallet.USDT, "USDT", displayCurrency, rates);
+  // NEW: Helper function to calculate the total wallet value in any given currency
+  const getTotalIn = (targetCurrency: Currency) => {
+    return (
+      convert(wallet.BTC, "BTC", targetCurrency, rates) +
+      convert(wallet.NGN, "NGN", targetCurrency, rates) +
+      convert(wallet.USDT, "USDT", targetCurrency, rates)
+    );
+  };
+
+  const totalInDisplay = getTotalIn(displayCurrency);
+
+  // Big Display Format: If BTC is selected, show it as Sats here
+  const displayString =
+    displayCurrency === "BTC"
+      ? `${Math.round(totalInDisplay * 100_000_000).toLocaleString()} sats`
+      : formatCurrency(totalInDisplay, displayCurrency);
+
+  const currencyLabel = displayCurrency === "BTC" ? "sats" : displayCurrency;
 
   return (
     <div className="relative overflow-hidden rounded-3xl p-6 md:p-8 text-slate-900 dark:text-white bg-slate-50 dark:bg-transparent border border-slate-200/80 dark:border-none shadow-md dark:shadow-xl transition-all duration-300">
@@ -50,13 +64,11 @@ export function BalanceCard({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl md:text-5xl font-extrabold tracking-tight tabular-nums">
-              {hidden
-                ? "••••••"
-                : formatCurrency(totalInDisplay, displayCurrency)}
+              {hidden ? "••••••" : displayString}
             </span>
           </div>
           <p className="mt-1 text-xs text-slate-400 dark:text-white/70">
-            in {displayCurrency} · live rate updated periodically
+            in {currencyLabel} · live rate updated periodically
           </p>
         </div>
 
@@ -76,9 +88,10 @@ export function BalanceCard({
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-3">
+        {/* CHANGED: Passing getTotalIn() so the chips reflect the total portfolio value */}
         <BalanceChip
           label="Bitcoin"
-          amount={wallet.BTC}
+          amount={getTotalIn("BTC")}
           currency="BTC"
           hidden={hidden}
           accent
@@ -91,7 +104,7 @@ export function BalanceCard({
         />
         <BalanceChip
           label="Naira"
-          amount={wallet.NGN}
+          amount={getTotalIn("NGN")}
           currency="NGN"
           hidden={hidden}
           onSelect={
@@ -103,7 +116,7 @@ export function BalanceCard({
         />
         <BalanceChip
           label="USDT"
-          amount={wallet.USDT}
+          amount={getTotalIn("USDT")}
           currency="USDT"
           hidden={hidden}
           onSelect={
@@ -145,6 +158,9 @@ function BalanceChip({
   onSelect,
   active,
 }: BalanceChipProps) {
+  // Uses the standard formatCurrency to show regular BTC decimals (e.g. ₿0.000020)
+  const displayAmount = formatCurrency(amount, currency);
+
   const Inner = (
     <div
       className={`rounded-2xl p-3 text-left transition-all ${
@@ -160,7 +176,7 @@ function BalanceChip({
         {label}
       </div>
       <div className="mt-1 text-sm md:text-base font-bold tabular-nums truncate">
-        {hidden ? "•••••" : formatCurrency(amount, currency)}
+        {hidden ? "•••••" : displayAmount}
       </div>
     </div>
   );
