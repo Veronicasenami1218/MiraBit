@@ -24,6 +24,9 @@ const FEATURES = [
     description:
       "Save spare Naira or USDT — we convert it into Bitcoin so your money holds value over time.",
     tone: "from-orange-500 to-rose-500",
+    hoverText: "group-hover:text-orange-600 dark:group-hover:text-orange-400",
+    hoverBorder: "hover:border-orange-500/40",
+    hoverShadow: "hover:shadow-orange-500/10",
   },
   {
     Icon: QrCode,
@@ -31,12 +34,18 @@ const FEATURES = [
     description:
       "Pay for textbooks, lunch or services with a quick scan. Send Bitcoin in seconds.",
     tone: "from-emerald-500 to-teal-500",
+    hoverText: "group-hover:text-emerald-600 dark:group-hover:text-emerald-400",
+    hoverBorder: "hover:border-emerald-500/40",
+    hoverShadow: "hover:shadow-emerald-500/10",
   },
   {
     Icon: ArrowLeftRight,
     title: "Easy conversions",
     description: "Swap between BTC, Naira and USDT at live rates with one tap.",
     tone: "from-blue-500 to-violet-500",
+    hoverText: "group-hover:text-blue-600 dark:group-hover:text-blue-400",
+    hoverBorder: "hover:border-blue-500/40",
+    hoverShadow: "hover:shadow-blue-500/10",
   },
   {
     Icon: WifiOff,
@@ -44,6 +53,9 @@ const FEATURES = [
     description:
       "Queue payments and savings without internet. They sync the moment you reconnect.",
     tone: "from-amber-500 to-yellow-500",
+    hoverText: "group-hover:text-amber-600 dark:group-hover:text-amber-400",
+    hoverBorder: "hover:border-amber-500/40",
+    hoverShadow: "hover:shadow-amber-500/10",
   },
   {
     Icon: GraduationCap,
@@ -51,6 +63,9 @@ const FEATURES = [
     description:
       "Beginner-friendly lessons teach Bitcoin basics. Pass each quiz to earn real sats.",
     tone: "from-fuchsia-500 to-pink-500",
+    hoverText: "group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400",
+    hoverBorder: "hover:border-fuchsia-500/40",
+    hoverShadow: "hover:shadow-fuchsia-500/10",
   },
   {
     Icon: ShieldCheck,
@@ -58,6 +73,9 @@ const FEATURES = [
     description:
       "No paperwork, no central database. Your data lives on your device.",
     tone: "from-cyan-500 to-sky-500",
+    hoverText: "group-hover:text-cyan-600 dark:group-hover:text-cyan-400",
+    hoverBorder: "hover:border-cyan-500/40",
+    hoverShadow: "hover:shadow-cyan-500/10",
   },
 ];
 
@@ -99,17 +117,22 @@ function CountUp({
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!start) return;
+    if (!start) {
+      setCount(0);
+      return;
+    }
     let startTime: number | null = null;
+    let raf: number;
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       setCount(Math.floor(eased * target));
-      if (progress < 1) requestAnimationFrame(step);
+      if (progress < 1) raf = requestAnimationFrame(step);
     };
-    requestAnimationFrame(step);
-  }, [target, duration, start]);
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [start, target, duration]);
 
   return (
     <>
@@ -117,6 +140,43 @@ function CountUp({
       {count.toLocaleString()}
     </>
   );
+}
+
+function StepCountUp({
+  target,
+  duration = 800,
+  start = false,
+  delay = 0,
+}: {
+  target: number;
+  duration?: number;
+  start?: boolean;
+  delay?: number;
+}) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!start) {
+      setCount(0);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      let startTime: number | null = null;
+      let raf: number;
+      const step = (timestamp: number) => {
+        if (!startTime) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setCount(Math.floor(eased * target));
+        if (progress < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+      return () => cancelAnimationFrame(raf);
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, [start, target, duration, delay]);
+
+  return <>{String(count).padStart(2, "0")}</>;
 }
 
 export default function Landing() {
@@ -163,9 +223,9 @@ export default function Landing() {
                 Bitcoin made simple
               </div>
               <h1 className="mt-5 text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
-                Save smarter.
+                Save. Convert.
                 <br />
-                Pay anywhere.
+                Pay. Learn.
                 <br />
                 <span className="text-primary">Own your money.</span>
               </h1>
@@ -241,7 +301,7 @@ export default function Landing() {
                   <div className="mt-4 grid grid-cols-4 gap-2 text-[10px] font-medium">
                     {[
                       { I: PiggyBank, l: "Save" },
-                      { I: ArrowLeftRight, l: "Swap" },
+                      { I: ArrowLeftRight, l: "Convert" },
                       { I: QrCode, l: "Pay" },
                       { I: GraduationCap, l: "Learn" },
                     ].map(({ I, l }) => (
@@ -321,7 +381,7 @@ export default function Landing() {
                       ${problems.inView ? "opacity-100 translate-x-0" : "opacity-0 translate-x-12"}
                     `}
                     style={{
-                      transitionDelay: `${i * 300}ms`,
+                      transitionDelay: `${i * 150}ms`,
                       width: `${100 - i * 8}%`,
                     }}
                   >
@@ -358,29 +418,44 @@ export default function Landing() {
         </div>
 
         <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATURES.map(({ Icon, title, description, tone }, i) => (
-            <div
-              key={title}
-              className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-200 ease-out z-10 hover:z-20
-                ${features.inView ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95"}
-              `}
-              style={{
-                transitionDelay: features.inView ? `${i * 150}ms` : "0ms",
-              }}
-            >
+          {FEATURES.map(
+            (
+              {
+                Icon,
+                title,
+                description,
+                tone,
+                hoverText,
+                hoverBorder,
+                hoverShadow,
+              },
+              i,
+            ) => (
               <div
-                className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md transition-all duration-200 group-hover:scale-125 group-hover:-rotate-6`}
+                key={title}
+                className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl ${hoverShadow} hover:-translate-y-2 hover:scale-105 ${hoverBorder} transition-[transform,box-shadow,border-color,opacity] duration-100 ease-out z-10 hover:z-20
+                  ${features.inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"}
+                `}
+                style={{
+                  transitionDelay: features.inView ? `${i * 150}ms` : "0ms",
+                }}
               >
-                <Icon className="h-6 w-6" />
+                <div
+                  className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md transition-all duration-200 group-hover:scale-125 group-hover:-rotate-6`}
+                >
+                  <Icon className="h-6 w-6" />
+                </div>
+                <h3
+                  className={`mt-5 text-lg font-semibold transition-colors duration-200 ${hoverText}`}
+                >
+                  {title}
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  {description}
+                </p>
               </div>
-              <h3 className="mt-5 text-lg font-semibold transition-colors duration-200 group-hover:text-orange-600 dark:group-hover:text-orange-400">
-                {title}
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                {description}
-              </p>
-            </div>
-          ))}
+            ),
+          )}
         </div>
       </section>
 
@@ -406,33 +481,59 @@ export default function Landing() {
           <div className="mt-12 grid md:grid-cols-3 gap-6">
             {[
               {
-                n: "01",
+                n: 1,
                 title: "Top up",
                 desc: "Add Naira or USDT to your MiraBit wallet from any source.",
+                enterClass: "md:-translate-x-12 translate-y-8",
               },
               {
-                n: "02",
+                n: 2,
                 title: "Save or pay",
                 desc: "Convert spare funds into Bitcoin, or pay anyone with a QR scan.",
+                enterClass: "translate-y-12",
               },
               {
-                n: "03",
+                n: 3,
                 title: "Grow & learn",
                 desc: "Watch your BTC stack build up while you complete fun lessons.",
+                enterClass: "md:translate-x-12 translate-y-8",
               },
             ].map((s, i) => (
               <div
                 key={s.n}
-                className={`group rounded-2xl border bg-card p-6 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-200 ease-out z-10 hover:z-20
-                  ${howItWorks.inView ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95"}
-                `}
                 style={{
                   transitionDelay: howItWorks.inView ? `${i * 200}ms` : "0ms",
+                  isolation: "isolate",
                 }}
+                className={`group relative rounded-2xl border bg-card p-6
+                  hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40
+                  transition-[transform,box-shadow,border-color,opacity] duration-500 ease-out
+                  overflow-hidden
+                  ${
+                    howItWorks.inView
+                      ? "opacity-100 translate-x-0 translate-y-0"
+                      : `opacity-0 ${s.enterClass}`
+                  }
+                `}
               >
-                <div className="text-5xl font-extrabold text-primary/30 transition-all duration-200 group-hover:text-primary/60 group-hover:-translate-y-1">
-                  {s.n}
+                {/* Growing left accent border on hover */}
+                <div className="absolute left-0 top-0 w-[3px] bg-primary rounded-l-2xl h-0 group-hover:h-full transition-[height] duration-300 ease-out" />
+
+                {/* Step number — counts up, brightens on hover */}
+                <div
+                  className="text-5xl font-extrabold tabular-nums
+                    text-primary/30 group-hover:text-primary
+                    transition-[color,transform] duration-200
+                    group-hover:-translate-y-3"
+                >
+                  <StepCountUp
+                    target={s.n}
+                    duration={600}
+                    start={howItWorks.inView}
+                    delay={i * 200}
+                  />
                 </div>
+
                 <h3 className="mt-3 text-xl font-bold">{s.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
               </div>
@@ -482,7 +583,8 @@ export default function Landing() {
             ].map((t, i) => (
               <div
                 key={`${t.name}-${i}`}
-                className="w-[300px] md:w-[350px] shrink-0 group rounded-2xl border bg-card p-6 flex flex-col hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-200 ease-out cursor-pointer z-0 hover:z-20"
+                style={{ isolation: "isolate" }}
+                className="w-[300px] md:w-[350px] shrink-0 group rounded-2xl border bg-card p-6 flex flex-col hover:shadow-2xl hover:-translate-y-2 hover:scale-105 hover:border-orange-500/40 transition-all duration-200 ease-out cursor-pointer"
               >
                 <p className="text-base leading-relaxed flex-1 transition-colors duration-200 group-hover:text-foreground">
                   "{t.quote}"
@@ -547,14 +649,12 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Upgraded Footer */}
+      {/* Footer */}
       <footer className="relative border-t bg-card overflow-hidden mt-12">
-        {/* Subtle bottom glow to match the app's aesthetic */}
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-orange-500/10 via-background to-background" />
 
         <div className="container max-w-6xl py-12 md:py-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-12">
-            {/* Brand Column (Spans 2 columns on desktop) */}
             <div className="col-span-2 flex flex-col items-start">
               <Logo />
               <p className="mt-5 text-sm text-muted-foreground max-w-sm leading-relaxed">
@@ -567,7 +667,6 @@ export default function Landing() {
               </p>
             </div>
 
-            {/* Links Column 1: Product */}
             <div>
               <h4 className="text-base font-semibold mb-5 text-foreground">
                 Product
@@ -600,7 +699,6 @@ export default function Landing() {
               </ul>
             </div>
 
-            {/* Links Column 2: Connect */}
             <div>
               <h4 className="text-base font-semibold mb-5 text-foreground">
                 Connect
@@ -634,7 +732,6 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Bottom Copyright Bar */}
           <div className="mt-16 pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
             <p>
               © {new Date().getFullYear()} MiraBit. Built for the campus crowd.
