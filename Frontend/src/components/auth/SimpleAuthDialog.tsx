@@ -4,8 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff } from "lucide-react"; // Imported eye icons
+import {
+  ArrowRight,
+  Wallet,
+  ShieldAlert,
+  Sparkles,
+  ArrowLeft,
+} from "lucide-react";
 
 interface SimpleAuthDialogProps {
   isOpen: boolean;
@@ -13,417 +18,236 @@ interface SimpleAuthDialogProps {
 }
 
 export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
-  const [step, setStep] = useState<
-    "welcome" | "signup" | "password" | "login" | "privacy"
-  >("welcome");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [step, setStep] = useState<"menu" | "create" | "restore">("menu");
+
+  // Wallet creation states
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState("");
+
+  // Wallet restoration state
+  const [recoveryPhrase, setRecoveryPhrase] = useState("");
+
   const [error, setError] = useState("");
 
-  // Visibility states for the password inputs
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const handleCreateWallet = () => {
+    if (pin.length !== 4) {
+      setError("Please enter a 4-digit PIN.");
+      return;
+    }
 
-  const handleNextToPassword = () => {
-    if (!name.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
-    if (!email.trim() || !email.includes("@")) {
-      setError("Please enter a valid email.");
-      return;
-    }
-    if (!agreed) {
-      setError("Please accept the privacy policy to continue.");
-      return;
-    }
-    setError("");
-    setStep("password");
-  };
-
-  const handleSignup = () => {
-    if (!password) {
-      setError("Please enter a password.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
     localStorage.setItem(
       "mirabit_user",
       JSON.stringify({
-        name: name.trim(),
-        email: email.trim(),
-        password: password,
+        name: username.trim() || "Anon Satoshi",
+        pin: pin,
         signupBonus: 2000,
         isNew: true,
       }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
-    onClose();
+    onClose(); // This is the ONLY way the modal can now close!
   };
 
-  const handleLogin = () => {
-    if (!email.trim() || !email.includes("@")) {
-      setError("Please enter a valid email.");
+  const handleRestoreWallet = () => {
+    if (recoveryPhrase.trim().split(" ").length < 12) {
+      setError("Recovery phrase must be at least 12 words.");
       return;
     }
-    if (!password) {
-      setError("Please enter your password.");
-      return;
-    }
-    const stored = localStorage.getItem("mirabit_user");
-    if (!stored) {
-      setError("No account found. Please sign up first.");
-      return;
-    }
-    const user = JSON.parse(stored);
-    if (user.email !== email.trim() || user.password !== password) {
-      setError("Invalid email or password.");
-      return;
-    }
-    // Mark as not new on login
+
     localStorage.setItem(
       "mirabit_user",
-      JSON.stringify({ ...user, isNew: false }),
+      JSON.stringify({
+        name: "Restored User",
+        isNew: false,
+      }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
-    onClose();
+    onClose(); // This is the ONLY way the modal can now close!
+  };
+
+  const goBack = () => {
+    setStep("menu");
+    setError("");
+    setPin("");
+    setUsername("");
+    setRecoveryPhrase("");
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent
-        className="max-w-[95vw] sm:max-w-sm rounded-2xl p-0 gap-0 overflow-hidden"
+        // CHANGED: Added [&>button]:hidden to remove the default top-right 'X' button
+        className="w-[90vw] max-w-[400px] rounded-[2rem] p-0 gap-0 overflow-hidden bg-background border-2 [&>button]:hidden"
+        // CHANGED: Prevent closing when clicking outside or pressing the Escape key
         onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        {/* Header */}
-        <div
-          className="p-6 text-white text-center"
-          style={{
-            background:
-              "linear-gradient(135deg, hsl(28 96% 54%) 0%, hsl(18 92% 48%) 100%)",
-          }}
-        >
-          <div className="flex justify-center mb-3">
-            <Logo showWordmark={false} />
-          </div>
-          <h2 className="text-xl font-extrabold">Welcome to MiraBit</h2>
-          <p className="text-sm text-white/80 mt-1">Save. Convert. Pay.</p>
-        </div>
+        <div className="p-6 md:p-8">
+          {/* STEP 1: The Main Menu */}
+          {step === "menu" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col items-center text-center">
+              {/* CHANGED: Logo and Wallet are now side-by-side using flex-row */}
+              <div className="py-8 w-full mb-6 bg-muted/30 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-orange-100 to-rose-100 opacity-50 dark:opacity-5" />
+                <div className="relative flex items-center justify-center gap-4">
+                  <Sparkles className="h-4 w-4 text-orange-500" />
+                  <Logo showWordmark={false} />
 
-        <div className="px-6 pb-6 pt-5 space-y-4">
-          {/* Welcome step */}
-          {step === "welcome" && (
-            <div className="space-y-3 text-center">
-              <p className="text-sm text-muted-foreground">
-                Your Bitcoin savings journey starts here.
+                  {/* Small divider line */}
+                  {/* <div className="h-8 w-[2px] bg-foreground/10 rounded-full" /> */}
+
+                  <div className="flex items-center gap-1.5 text-orange-500">
+                    <Wallet className="h-8 w-8" />
+                    <Sparkles className="h-3 w-3" />
+                  </div>
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-extrabold tracking-tight">
+                MiraBit Wallet
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground max-w-xs leading-relaxed">
+                Incredibly simple, secure, and private Bitcoin wallet for modern
+                users.
               </p>
-              <Button onClick={() => setStep("signup")} className="w-full h-12">
-                Create account
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setStep("login")}
-                className="w-full h-12"
-              >
-                I already have an account
-              </Button>
-            </div>
-          )}
 
-          {/* Signup step */}
-          {step === "signup" && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-name">Your name</Label>
-                <Input
-                  id="signup-name"
-                  placeholder="e.g. Tunmise"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setError("");
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-email">Email address</Label>
-                <Input
-                  id="signup-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError("");
-                  }}
-                />
-              </div>
-
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  id="privacy"
-                  checked={agreed}
-                  onCheckedChange={(v) => {
-                    setAgreed(!!v);
-                    setError("");
-                  }}
-                  className="mt-0.5"
-                />
-                <label
-                  htmlFor="privacy"
-                  className="text-xs text-muted-foreground leading-relaxed cursor-pointer"
+              <div className="w-full mt-8 space-y-3">
+                <Button
+                  onClick={() => setStep("create")}
+                  className="w-full h-12 text-base font-semibold rounded-2xl bg-foreground text-background hover:bg-foreground/90 transition-transform active:scale-95"
                 >
-                  I agree to the{" "}
-                  <button
-                    type="button"
-                    onClick={() => setStep("privacy")}
-                    className="text-primary underline underline-offset-2 hover:opacity-80"
-                  >
-                    Privacy Policy
-                  </button>
-                  . MiraBit stores your data locally on your device only.
-                </label>
+                  Create wallet <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setStep("restore")}
+                  className="w-full h-12 text-base font-semibold rounded-2xl border-2 hover:bg-muted transition-transform active:scale-95"
+                >
+                  I already have a wallet
+                </Button>
               </div>
-
-              {error && <p className="text-sm text-destructive">{error}</p>}
-
-              <Button onClick={handleNextToPassword} className="w-full h-12">
-                Continue
-              </Button>
-              <button
-                onClick={() => {
-                  setStep("welcome");
-                  setError("");
-                }}
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-              >
-                Back
-              </button>
             </div>
           )}
 
-          {/* Create Password step */}
-          {step === "password" && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-password">Create password</Label>
-                <div className="relative">
-                  <Input
-                    id="signup-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setError("");
-                    }}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
+          {/* STEP 2: Create Secure Wallet */}
+          {step === "create" && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300 ease-out">
+              <div className="flex justify-center mb-4">
+                <Logo showWordmark={false} />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-confirm-password">
-                  Confirm password
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="signup-confirm-password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      setError("");
-                    }}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {error && <p className="text-sm text-destructive">{error}</p>}
-
-              <Button onClick={handleSignup} className="w-full h-12">
-                Get started
-              </Button>
-              <button
-                onClick={() => {
-                  setStep("signup");
-                  setError("");
-                }}
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-              >
-                Back
-              </button>
-            </div>
-          )}
-
-          {/* Privacy Policy step */}
-          {step === "privacy" && (
-            <div className="space-y-4">
-              <div className="h-64 overflow-y-auto rounded-xl border p-4 text-xs text-muted-foreground space-y-3 leading-relaxed">
-                <p className="font-semibold text-foreground text-sm">
-                  MiraBit Privacy Policy
-                </p>
-
-                <p>
-                  MiraBit is committed to protecting your privacy. This Privacy
-                  Policy explains how we handle information within the MiraBit
-                  application. Because we believe in financial privacy and
-                  decentralization, our application is designed to minimize data
-                  collection.
-                </p>
-                <p className="font-medium text-foreground">
-                  1. Information We Collect and How It Is Used
-                </p>
-                <p>
-                  <span className="font-medium text-foreground">
-                    Local User Profile:
-                  </span>{" "}
-                  If you choose to provide a name or email address within the
-                  app to personalize your profile, this data is stored strictly
-                  locally on your device. We do not transmit, store, or process
-                  this personal data on any external servers.
-                </p>
-                <p>
-                  <span className="font-medium text-foreground">
-                    Bitcoin & Wallet Data:
-                  </span>{" "}
-                  All wallet-related data, including private keys, public
-                  addresses, transaction histories, and balances, is generated
-                  and stored locally on your device. MiraBit has no access to
-                  your wallet, your funds, or your transaction history.
-                </p>
-                <p className="font-medium text-foreground">
-                  2. Third-Party Services and Tracking
-                </p>
-                <p>
-                  We do not use tracking cookies, analytics software, or
-                  third-party SDKs that monitor your usage habits. We do not
-                  sell, trade, or rent your personal information to third
-                  parties.
-                </p>
-                <p className="font-medium text-foreground">3. Data Security</p>
-                <p>
-                  Because your data is stored locally on your device, the
-                  security of your information depends on your device's
-                  security. We highly recommend securing your device with
-                  biometrics, strong passwords, and backing up your wallet
-                  recovery phrases securely.
-                </p>
-
-                <p className="font-medium text-foreground">4. Contact Us</p>
-                <p>
-                  If you have any questions or concerns about this Privacy
-                  Policy or how your data is handled, please contact us at:
-                  privacy@mirabit.app
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  setAgreed(true);
-                  setStep("signup");
-                }}
-                className="w-full h-12"
-              >
-                I accept
-              </Button>
-              <button
-                onClick={() => setStep("signup")}
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-              >
-                Back
-              </button>
-            </div>
-          )}
-
-          {/* Login step */}
-          {step === "login" && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                Welcome back! Enter your email to continue.
+              <h2 className="text-2xl font-bold text-center">
+                Create Secure Wallet
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground text-center mb-6">
+                Your wallet identity will be securely created for you.
               </p>
-              <div className="space-y-1.5">
-                <Label htmlFor="login-email">Email address</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError("");
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="login-password">Password</Label>
-                <div className="relative">
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="username" className="text-muted-foreground">
+                    Username (optional)
+                  </Label>
                   <Input
-                    id="login-password"
-                    type={showLoginPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
+                    id="username"
+                    placeholder="e.g. Satoshi"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="h-12 rounded-xl px-4"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="pin" className="text-muted-foreground">
+                    Create PIN (4 digits)
+                  </Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="••••"
+                    value={pin}
                     onChange={(e) => {
-                      setPassword(e.target.value);
+                      setPin(e.target.value.replace(/\D/g, ""));
                       setError("");
                     }}
-                    className="pr-10"
+                    className="h-12 rounded-xl text-2xl tracking-widest text-center"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                </div>
+
+                {error && (
+                  <p className="text-sm text-destructive font-medium text-center">
+                    {error}
+                  </p>
+                )}
+
+                <div className="pt-2 space-y-2">
+                  <Button
+                    onClick={handleCreateWallet}
+                    className="w-full h-12 text-base font-bold rounded-xl"
                   >
-                    {showLoginPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    Generate Wallet
+                  </Button>
+                  <button
+                    onClick={goBack}
+                    className="w-full text-sm font-medium flex items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground py-2 transition-colors"
+                  >
+                    <ArrowLeft className="h-3 w-3" /> Back
                   </button>
                 </div>
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button onClick={handleLogin} className="w-full h-12">
-                Log in
-              </Button>
-              <button
-                onClick={() => {
-                  setStep("welcome");
-                  setError("");
-                }}
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-              >
-                Back
-              </button>
+            </div>
+          )}
+
+          {/* STEP 3: Restore Existing Wallet */}
+          {step === "restore" && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300 ease-out">
+              <div className="flex justify-center mb-4 text-orange-500">
+                <ShieldAlert className="h-10 w-10" />
+              </div>
+              <h2 className="text-2xl font-bold text-center">Restore Wallet</h2>
+              <p className="mt-2 text-sm text-muted-foreground text-center mb-6">
+                Enter your recovery phrase to restore your funds.
+              </p>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="phrase" className="sr-only">
+                    Recovery Phrase
+                  </Label>
+                  <textarea
+                    id="phrase"
+                    placeholder="apple banana cherry..."
+                    value={recoveryPhrase}
+                    onChange={(e) => {
+                      setRecoveryPhrase(e.target.value);
+                      setError("");
+                    }}
+                    className="flex w-full rounded-xl border border-input bg-transparent px-4 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[100px] resize-none"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-sm text-destructive font-medium text-center">
+                    {error}
+                  </p>
+                )}
+
+                <div className="pt-2 space-y-2">
+                  <Button
+                    onClick={handleRestoreWallet}
+                    className="w-full h-12 text-base font-bold rounded-xl bg-foreground text-background hover:bg-foreground/90"
+                  >
+                    Restore wallet
+                  </Button>
+                  <button
+                    onClick={goBack}
+                    className="w-full text-sm font-medium flex items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground py-2 transition-colors"
+                  >
+                    <ArrowLeft className="h-3 w-3" /> Back
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
