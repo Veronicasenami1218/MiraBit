@@ -10,6 +10,7 @@ import {
   ShieldAlert,
   Sparkles,
   ArrowLeft,
+  Gift,
 } from "lucide-react";
 
 interface SimpleAuthDialogProps {
@@ -18,7 +19,9 @@ interface SimpleAuthDialogProps {
 }
 
 export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
-  const [step, setStep] = useState<"menu" | "create" | "restore">("menu");
+  const [step, setStep] = useState<"menu" | "create" | "restore" | "success">(
+    "menu",
+  );
 
   // Wallet creation states
   const [username, setUsername] = useState("");
@@ -34,7 +37,13 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       setError("Please enter a 4-digit PIN.");
       return;
     }
+    setError("");
+    // Move to the congratulatory bonus screen instead of closing immediately
+    setStep("success");
+  };
 
+  const handleAcceptBonus = () => {
+    // Save to local storage and officially let them into the app
     localStorage.setItem(
       "mirabit_user",
       JSON.stringify({
@@ -45,7 +54,7 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
-    onClose(); // This is the ONLY way the modal can now close!
+    onClose();
   };
 
   const handleRestoreWallet = () => {
@@ -62,7 +71,7 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
       }),
     );
     window.dispatchEvent(new Event("mirabit_auth_update"));
-    onClose(); // This is the ONLY way the modal can now close!
+    onClose();
   };
 
   const goBack = () => {
@@ -76,9 +85,7 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent
-        // CHANGED: Added [&>button]:hidden to remove the default top-right 'X' button
         className="w-[90vw] max-w-[400px] rounded-[2rem] p-0 gap-0 overflow-hidden bg-background border-2 [&>button]:hidden"
-        // CHANGED: Prevent closing when clicking outside or pressing the Escape key
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -86,20 +93,16 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
           {/* STEP 1: The Main Menu */}
           {step === "menu" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col items-center text-center">
-              {/* CHANGED: Logo and Wallet are now side-by-side using flex-row */}
               <div className="py-8 w-full mb-6 bg-muted/30 rounded-2xl border-2 border-dashed flex items-center justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-tr from-orange-100 to-rose-100 opacity-50 dark:opacity-5" />
                 <div className="relative flex items-center justify-center gap-4">
                   <Sparkles className="h-4 w-4 text-orange-500" />
                   <Logo showWordmark={false} />
 
-                  {/* Small divider line */}
-                  {/* <div className="h-8 w-[2px] bg-foreground/10 rounded-full" /> */}
-
                   <div className="flex items-center gap-1.5 text-orange-500">
                     <Wallet className="h-8 w-8" />
-                    <Sparkles className="h-3 w-3" />
                   </div>
+                  <Sparkles className="h-4 w-4 text-orange-500" />
                 </div>
               </div>
 
@@ -199,7 +202,48 @@ export function SimpleAuthDialog({ isOpen, onClose }: SimpleAuthDialogProps) {
             </div>
           )}
 
-          {/* STEP 3: Restore Existing Wallet */}
+          {/* STEP 3: Success & Bonus Screen */}
+          {step === "success" && (
+            <div className="animate-in zoom-in-95 duration-500 ease-out flex flex-col items-center text-center">
+              {/* Fun little ping animation for the gift icon */}
+              <div className="h-20 w-20 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 mb-6 relative">
+                <div
+                  className="absolute inset-0 animate-ping opacity-20 bg-orange-500 rounded-full"
+                  style={{ animationDuration: "2s" }}
+                />
+                <Gift className="h-10 w-10 relative z-10" />
+              </div>
+
+              <h2 className="text-3xl font-extrabold tracking-tight">
+                Welcome aboard!
+              </h2>
+              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                Your secure wallet is ready. To get you started on your savings
+                journey, we're giving you a free welcome bonus!
+              </p>
+
+              {/* Bonus Display Card */}
+              <div className="mt-6 p-5 w-full bg-gradient-to-br from-orange-500/10 to-rose-500/10 border border-orange-500/20 rounded-2xl flex flex-col items-center shadow-inner">
+                <span className="text-xs font-bold text-orange-600 uppercase tracking-wider mb-1">
+                  Sign-up Bonus
+                </span>
+                <span className="text-4xl font-black text-foreground tracking-tight">
+                  2,000 Sats
+                </span>
+              </div>
+
+              <div className="w-full pt-8">
+                <Button
+                  onClick={handleAcceptBonus}
+                  className="w-full h-14 text-base font-bold rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-orange-500/25 transition-all active:scale-95"
+                >
+                  Claim Bonus & Enter App
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* RESTORE EXISTING WALLET */}
           {step === "restore" && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 ease-out">
               <div className="flex justify-center mb-4 text-orange-500">
