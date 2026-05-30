@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useApi } from "@/hooks/useApi";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,9 +39,12 @@ export function SimpleAuthDialog({
   const [confirmPin, setConfirmPin] = useState("");
   const [showPin, setShowPin] = useState(false);
   const [recoveryPhrase, setRecoveryPhrase] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [confirmedSaved, setConfirmedSaved] = useState(false);
   const [error, setError] = useState("");
+  const api = useApi();
 
-  const handleCreateWallet = () => {
+  const handleCreateWallet = async () => {
     if (pin.length < 4) {
       setError("PIN must be at least 4 digits.");
       return;
@@ -50,7 +54,24 @@ export function SimpleAuthDialog({
       return;
     }
     setError("");
-    setStep("success");
+    setLoading(true);
+    try {
+      const payload = { name: username.trim() || undefined, pin };
+      const res = await api.post<{ keys?: { nsec?: string } }>(`/wallet/generate`, payload);
+
+      const nsec = res?.keys?.nsec ?? "";
+      if (!nsec) {
+        throw new Error("Backend did not return a recovery secret");
+      }
+
+      setRecoveryPhrase(nsec);
+      setConfirmedSaved(false);
+      setStep("success");
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to generate wallet");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAcceptBonus = () => {
@@ -109,6 +130,7 @@ export function SimpleAuthDialog({
           onClose();
         }}
       >
+        <DialogTitle className="sr-only">MiraBit Wallet</DialogTitle>
         <div className="p-6 md:p-8">
           {step === "menu" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col items-center text-center">
@@ -260,14 +282,59 @@ export function SimpleAuthDialog({
                 </span>
               </div>
 
-              <div className="w-full pt-8">
-                <Button
-                  onClick={handleAcceptBonus}
-                  className="w-full h-14 text-base font-bold rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-orange-500/25 transition-all active:scale-95"
-                >
-                  Claim Bonus & Enter App
-                </Button>
-              </div>
+              {/* Show recovery secret and require confirmation */}
+              {recoveryPhrase ? (
+                <div className="w-full mt-6 space-y-4">
+                  <div className="p-4 rounded-xl border bg-muted/5 break-words text-sm">
+                    <div className="font-medium text-xs text-muted-foreground mb-2">Recovery key (nsec)</div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="select-all text-sm">{recoveryPhrase}</div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(recoveryPhrase);
+                            void 0;
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                        className="ml-2 text-sm text-primary underline"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={confirmedSaved}
+                      onChange={(e) => setConfirmedSaved(e.target.checked)}
+                    />
+                    <span>I have copied and securely stored this recovery key.</span>
+                  </label>
+
+                  <div className="w-full pt-2">
+                    <Button
+                      onClick={handleAcceptBonus}
+                      disabled={!confirmedSaved}
+                      className="w-full h-14 text-base font-bold rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-orange-500/25 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      Claim Bonus & Enter App
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full pt-8">
+                  <Button
+                    onClick={handleAcceptBonus}
+                    className="w-full h-14 text-base font-bold rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-orange-500/25 transition-all active:scale-95"
+                  >
+                    Claim Bonus & Enter App
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 

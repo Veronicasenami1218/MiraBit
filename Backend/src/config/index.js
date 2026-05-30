@@ -12,7 +12,8 @@ const config = {
   nodeEnv:        process.env.NODE_ENV        || 'development',
   port:           parseInt(process.env.PORT, 10) || 5000,
   apiVersion:     process.env.API_VERSION     || 'v1',
-  allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  // Allow common local dev ports (Vite:5173, Frontend:8080) by default.
+  allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:8080')
                     .split(',')
                     .map((o) => o.trim()),
 

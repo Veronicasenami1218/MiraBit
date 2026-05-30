@@ -9,6 +9,16 @@ export default defineConfig(() => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      // Proxy any /api requests to the backend during development to avoid CORS.
+      // Frontend should use a relative VITE_API_BASE_URL like `/api/v1` in .env
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+    },
   },
   plugins: [
     react(),
