@@ -38,13 +38,30 @@ const assertSelf = (req, res, pubkey) => {
 
 // ── POST /wallet/generate ────────────────────────────────────────────────────
 // Generates a new Nostr keypair, creates a wallet, and returns the recovery key
-const { generateSecretKey, getPublicKey, nip19 } = require("nostr-tools");
+const { getPublicKey, nip19 } = require("nostr-tools");
+const bip39 = require("bip39");
 
+/**
+ * Generate a new wallet + recovery mnemonic (12 words).
+ * Derive the nostr secret key from the mnemonic so users can
+ * restore using the mnemonic later.
+ */
 const generateWallet = async (req, res, next) => {
   try {
-    const sk = generateSecretKey();
-    const pkHex = getPublicKey(sk);
-    const nsec = nip19.nsecEncode(sk);
+    // 128 bits entropy -> 12-word mnemonic
+    const mnemonic = bip39.generateMnemonic(128);
+    const seed = bip39.mnemonicToSeedSync(mnemonic); // Buffer
+
+    // Use the first 32 bytes of the seed as the nostr/secp256k1 private key.
+    // This is a common simple derivation for apps that want mnemonic-based
+    // nostr key recovery. It yields a 32-byte hex string usable by nostr-tools.
+    const sk = seed.slice(0, 32).toString("hex");
+
+    // `getPublicKey` expects a Uint8Array; we derive both hex and bytes
+    const skHex = sk;
+    const skBytes = Buffer.from(skHex, "hex");
+    const pkHex = getPublicKey(skBytes);
+    const nsec = nip19.nsecEncode(skBytes);
     const npub = nip19.npubEncode(pkHex);
 
     const wallet = await walletService.createWallet(pkHex);
@@ -53,7 +70,8 @@ const generateWallet = async (req, res, next) => {
       keys: {
         pubkeyHex: pkHex,
         npub,
-        nsec, // The user's recovery key
+        nsec,
+        mnemonic, // 12-word recovery phrase (show & ask user to save)
       },
       wallet,
     });
