@@ -402,7 +402,16 @@ export function SimpleAuthDialog({
                           }
                           if (ok) {
                             setCopied(true);
-                            setTimeout(() => setCopied(false), 2000);
+                            setConfirmedSaved(true);
+                            // brief visual feedback before navigating
+                            setTimeout(() => {
+                              setCopied(false);
+                              try {
+                                window.dispatchEvent(new Event('mirabit_auth_update'));
+                              } catch {}
+                              navigate(redirectPath);
+                              onClose();
+                            }, 700);
                           }
                         }}
                         className="ml-2 text-sm text-primary underline"
