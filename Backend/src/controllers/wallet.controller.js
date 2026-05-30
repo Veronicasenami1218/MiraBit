@@ -61,7 +61,6 @@ const generateWallet = async (req, res, next) => {
     const skHex = sk;
     const skBytes = Buffer.from(skHex, "hex");
     const pkHex = getPublicKey(skBytes);
-    const nsec = nip19.nsecEncode(skBytes);
     const npub = nip19.npubEncode(pkHex);
 
     const wallet = await walletService.createWallet(pkHex);
@@ -70,7 +69,6 @@ const generateWallet = async (req, res, next) => {
       keys: {
         pubkeyHex: pkHex,
         npub,
-        nsec,
         mnemonic, // 12-word recovery phrase (show & ask user to save)
       },
       wallet,

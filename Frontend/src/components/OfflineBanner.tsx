@@ -1,5 +1,5 @@
 import { WifiOff, RefreshCw } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useWallet } from "@/hooks/useWallet";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
@@ -24,6 +24,7 @@ export function OfflineBanner() {
   const { transactions, settleQueued } = useWallet();
   const queue = useOfflineQueue();
   const { toast } = useToast();
+  const [backendFallback, setBackendFallback] = useState(false);
   const wasOffline = useRef(!isOnline);
 
   // Combine queue counts from both sources – the UI shows whichever is larger
@@ -80,7 +81,18 @@ export function OfflineBanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  if (isOnline) return null;
+  // Listen for the wallet fallback event dispatched by useWallet when the
+  // backend read fails. Show a small banner so the user knows we're using
+  // local demo data as a temporary fallback.
+  useEffect(() => {
+    const handler = () => setBackendFallback(true);
+    const ratesHandler = () => setBackendFallback(true);
+    window.addEventListener("mirabit_wallet_fallback", handler as EventListener);
+    window.addEventListener("mirabit_rates_fallback", ratesHandler as EventListener);
+    return () => window.removeEventListener("mirabit_wallet_fallback", handler as EventListener);
+  }, []);
+
+  if (isOnline && !backendFallback) return null;
 
   return (
     <div
@@ -94,9 +106,15 @@ export function OfflineBanner() {
         <div className="flex items-center gap-2 min-w-0">
           <WifiOff className="h-4 w-4 shrink-0" />
           <span className="truncate">
-            {simulatedOffline ? "Offline mode" : "You're offline"} —
+            {backendFallback
+              ? "Using local demo data — backend unavailable."
+              : simulatedOffline
+              ? "Offline mode"
+              : "You're offline"}
             {queuedCount > 0
               ? ` ${queuedCount} payment${queuedCount === 1 ? "" : "s"} queued.`
+              : backendFallback
+              ? " The app will retry the server in the background and update when available."
               : " payments will queue and sync when you reconnect."}
           </span>
         </div>
