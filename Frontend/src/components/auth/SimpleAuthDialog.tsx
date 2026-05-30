@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "@/hooks/useApi";
+import { useLoginActions } from "@/hooks/useLoginActions";
+import bip39 from "bip39";
+import { nip19 } from "nostr-tools";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +45,9 @@ export function SimpleAuthDialog({
   const [loading, setLoading] = useState(false);
   const [confirmedSaved, setConfirmedSaved] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const api = useApi();
+  const loginActions = useLoginActions();
 
   const handleCreateWallet = async () => {
     if (pin.length < 4) {
@@ -63,7 +68,8 @@ export function SimpleAuthDialog({
 
       // Backend may return either an `nsec` (nostr secret) or a `mnemonic`
       // (12-word recovery phrase). Prefer `nsec` when present, otherwise
-      // fall back to the mnemonic phrase.
+      // fall back to the mnemonic phrase. If we only have a mnemonic,
+      // derive the nostr secret (nsec) client-side so we can log the user in.
       const nsec = res?.keys?.nsec;
       const mnemonic = res?.keys?.mnemonic;
       const secret = nsec ?? mnemonic ?? "";
@@ -72,6 +78,30 @@ export function SimpleAuthDialog({
       }
 
       setRecoveryPhrase(secret);
+
+      // If we don't have an nsec but do have a mnemonic, derive the nsec
+      // to allow automatic login via Nostr on the client.
+      let derivedNsec: string | null = null;
+      if (nsec) {
+        derivedNsec = nsec;
+      } else if (mnemonic) {
+        try {
+          const seed = bip39.mnemonicToSeedSync(mnemonic); // Buffer
+          const skHex = seed.slice(0, 32).toString("hex");
+          derivedNsec = nip19.nsecEncode(skHex);
+        } catch (err) {
+          // ignore derivation errors; user can still copy the mnemonic
+          derivedNsec = null;
+        }
+      }
+
+      if (derivedNsec) {
+        try {
+          loginActions.nsec(derivedNsec);
+        } catch (err) {
+          // non-fatal; still show mnemonic to user
+        }
+      }
       setConfirmedSaved(false);
       setStep("success");
     } catch (err: any) {
@@ -299,16 +329,41 @@ export function SimpleAuthDialog({
                       <button
                         type="button"
                         onClick={async () => {
+                          const text = recoveryPhrase;
+                          let ok = false;
                           try {
-                            await navigator.clipboard.writeText(recoveryPhrase);
-                            void 0;
-                          } catch {
-                            // ignore
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                              await navigator.clipboard.writeText(text);
+                              ok = true;
+                            }
+                          } catch (e) {
+                            ok = false;
+                          }
+                          if (!ok) {
+                            // Fallback: create a textarea, select and execCopy
+                            try {
+                              const ta = document.createElement('textarea');
+                              ta.value = text;
+                              ta.setAttribute('readonly', '');
+                              ta.style.position = 'absolute';
+                              ta.style.left = '-9999px';
+                              document.body.appendChild(ta);
+                              ta.select();
+                              const res = document.execCommand('copy');
+                              document.body.removeChild(ta);
+                              ok = res;
+                            } catch {
+                              ok = false;
+                            }
+                          }
+                          if (ok) {
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
                           }
                         }}
                         className="ml-2 text-sm text-primary underline"
                       >
-                        Copy
+                        {copied ? 'Copied' : 'Copy'}
                       </button>
                     </div>
                   </div>
