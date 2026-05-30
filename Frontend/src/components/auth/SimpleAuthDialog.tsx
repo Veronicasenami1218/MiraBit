@@ -62,48 +62,58 @@ export function SimpleAuthDialog({
     setLoading(true);
     try {
       const payload = { name: username.trim() || undefined, pin };
-      const res = await api.post<
-        { keys?: { nsec?: string; mnemonic?: string } }
-      >(`/wallet/generate`, payload);
+      // Backend endpoint returns { keys: { mnemonic, npub, pubkeyHex }, wallet }
+      // Use /wallet/generate for compatibility (backend accepts both)
+      const res = await api.post<{
+        keys?: { mnemonic?: string; npub?: string; pubkeyHex?: string };
+        wallet?: unknown;
+      }>(`/wallet/generate`, payload);
 
-      // Backend may return either an `nsec` (nostr secret) or a `mnemonic`
-      // (12-word recovery phrase). Prefer `nsec` when present, otherwise
-      // fall back to the mnemonic phrase. If we only have a mnemonic,
-      // derive the nostr secret (nsec) client-side so we can log the user in.
-      const nsec = res?.keys?.nsec;
-      const mnemonic = res?.keys?.mnemonic;
-      const secret = nsec ?? mnemonic ?? "";
-      if (!secret) {
-        throw new Error("Backend did not return a recovery secret");
+      const mnemonic = res?.keys?.mnemonic ?? "";
+      const pubkeyHex = res?.keys?.pubkeyHex ?? "";
+
+      if (!mnemonic) {
+        throw new Error("Backend did not return a recovery mnemonic");
       }
 
-      setRecoveryPhrase(secret);
+      // Show the 12-word recovery phrase to the user and require copy/confirm
+      setRecoveryPhrase(mnemonic);
 
-      // If we don't have an nsec but do have a mnemonic, derive the nsec
-      // to allow automatic login via Nostr on the client.
+      // Derive nsec from mnemonic so we can auto-login via NIP-98 on the client
       let derivedNsec: string | null = null;
-      if (nsec) {
-        derivedNsec = nsec;
-      } else if (mnemonic) {
-        try {
-          const seed = bip39.mnemonicToSeedSync(mnemonic); // Buffer
-          const skHex = seed.slice(0, 32).toString("hex");
-          derivedNsec = nip19.nsecEncode(skHex);
-        } catch (err) {
-          // ignore derivation errors; user can still copy the mnemonic
-          derivedNsec = null;
-        }
+      try {
+        const seed = bip39.mnemonicToSeedSync(mnemonic); // Buffer
+        const skHex = seed.slice(0, 32).toString("hex");
+        derivedNsec = nip19.nsecEncode(skHex);
+      } catch (err) {
+        derivedNsec = null;
       }
 
       if (derivedNsec) {
         try {
           loginActions.nsec(derivedNsec);
         } catch (err) {
-          // non-fatal; still show mnemonic to user
+          // non-fatal
         }
       }
+
+      // Warm the server-backed wallet cache by fetching the wallet resource.
+      try {
+        if (pubkeyHex) {
+          await new Promise((r) => setTimeout(r, 200));
+          await api.get(`/wallet/${pubkeyHex}`);
+        }
+      } catch {
+        // ignore — fallback handled elsewhere
+      }
+
+      // Notify app and navigate into the app immediately after creation.
+      try {
+        window.dispatchEvent(new Event("mirabit_auth_update"));
+      } catch {}
       setConfirmedSaved(false);
-      setStep("success");
+      navigate(redirectPath);
+      onClose();
     } catch (err: any) {
       setError(err?.message ?? "Failed to generate wallet");
     } finally {
@@ -112,32 +122,65 @@ export function SimpleAuthDialog({
   };
 
   const handleAcceptBonus = () => {
-    localStorage.setItem(
-      "mirabit_user",
-      JSON.stringify({
-        name: username.trim() || "Anon Satoshi",
-        pin: pin,
-        signupBonus: 2000,
-        isNew: true,
-      }),
-    );
-    window.dispatchEvent(new Event("mirabit_auth_update"));
+    // User should already be logged in via NIP-98 (derived nsec). Just
+    // navigate into the app and close the dialog. Notify listeners that
+    // auth state may have changed so the UI can refresh wallet data.
+    try {
+      window.dispatchEvent(new Event("mirabit_auth_update"));
+    } catch {}
     navigate(redirectPath);
     onClose();
   };
 
-  const handleRestoreWallet = () => {
+  const handleRestoreWallet = async () => {
     if (recoveryPhrase.trim().split(" ").length < 12) {
       setError("Recovery phrase must be at least 12 words.");
       return;
     }
-    localStorage.setItem(
-      "mirabit_user",
-      JSON.stringify({ name: "Restored User", isNew: false }),
-    );
-    window.dispatchEvent(new Event("mirabit_auth_update"));
-    navigate(redirectPath);
-    onClose();
+
+    setLoading(true);
+    setError("");
+    try {
+      // POST to /wallet/generate with mnemonic to let server restore/create
+      const payload = { mnemonic: recoveryPhrase.trim(), name: username.trim() || "Restored User" };
+      const res = await api.post<{
+        keys?: { mnemonic?: string; npub?: string; pubkeyHex?: string };
+        wallet?: unknown;
+      }>(`/wallet/generate`, payload);
+
+      const mnemonic = res?.keys?.mnemonic ?? recoveryPhrase.trim();
+      const pubkeyHex = res?.keys?.pubkeyHex ?? "";
+
+      // Derive nsec and login locally as well, to create NIP-98 auth for subsequent calls
+      try {
+        const seed = bip39.mnemonicToSeedSync(mnemonic);
+        const skHex = seed.slice(0, 32).toString("hex");
+        const derivedNsec = nip19.nsecEncode(skHex);
+        loginActions.nsec(derivedNsec);
+      } catch {
+        // ignore derivation errors
+      }
+
+      // Warm server wallet read
+      try {
+        if (pubkeyHex) {
+          await new Promise((r) => setTimeout(r, 200));
+          await api.get(`/wallet/${pubkeyHex}`);
+        }
+      } catch {
+        // fallback will be signalled by useWallet
+      }
+
+      try {
+        window.dispatchEvent(new Event("mirabit_auth_update"));
+      } catch {}
+      navigate(redirectPath);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to restore wallet");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const goBack = () => {
@@ -323,7 +366,7 @@ export function SimpleAuthDialog({
               {recoveryPhrase ? (
                 <div className="w-full mt-6 space-y-4">
                   <div className="p-4 rounded-xl border bg-muted/5 break-words text-sm">
-                    <div className="font-medium text-xs text-muted-foreground mb-2">Recovery key (nsec)</div>
+                    <div className="font-medium text-xs text-muted-foreground mb-2">Recovery phrase (12 words)</div>
                     <div className="flex items-center justify-between gap-2">
                       <div className="select-all text-sm">{recoveryPhrase}</div>
                       <button

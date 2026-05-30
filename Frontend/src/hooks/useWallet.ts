@@ -131,7 +131,8 @@ function useServerWallet(pubkey: string): UseWalletResult {
 
   const balanceQuery = useQuery<BackendBalance>({
     queryKey: balanceKey,
-    queryFn: () => api.get<BackendBalance>(`/wallet/${pubkey}/balance`),
+    // Backend single-read endpoint returns the wallet envelope at /wallet/:pubkey
+    queryFn: () => api.get<BackendBalance>(`/wallet/${pubkey}`),
     staleTime: 15_000,
     enabled,
   });
@@ -152,6 +153,19 @@ function useServerWallet(pubkey: string): UseWalletResult {
   });
 
   const wallet: Wallet = balanceQuery.data?.balances ?? DEFAULT_WALLET;
+  // If the server read fails, dispatch a global event so the UI can show
+  // a small banner and fall back to the local demo data briefly.
+  if (balanceQuery.isError) {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("mirabit_wallet_fallback", {
+          detail: { message: "Backend wallet read failed" },
+        }),
+      );
+    } catch {
+      // ignore
+    }
+  }
   const transactions: Transaction[] = txQuery.data ?? [];
 
   // ── Mutations ───────────────────────────────────────────────────────────
