@@ -4,7 +4,7 @@ import { useApi } from "@/hooks/useApi";
 import { useLoginActions } from "@/hooks/useLoginActions";
 import bip39 from "bip39";
 import { nip19 } from "nostr-tools";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,6 +92,8 @@ export function SimpleAuthDialog({
       if (derivedNsec) {
         try {
           loginActions.nsec(derivedNsec);
+          // allow a short moment for the nostr login state to propagate
+          await new Promise((r) => setTimeout(r, 300));
         } catch (err) {
           // non-fatal
         }
@@ -107,14 +109,13 @@ export function SimpleAuthDialog({
         // ignore — fallback handled elsewhere
       }
 
-      // Show the recovery phrase and require the user to confirm copying it
-      // before navigating into the app. The Claim button will perform the
-      // navigation once `confirmedSaved` is checked.
+      // Notify app and navigate into the app immediately after creation.
       try {
         window.dispatchEvent(new Event("mirabit_auth_update"));
       } catch {}
       setConfirmedSaved(false);
-      setStep("success");
+      navigate(redirectPath);
+      onClose();
     } catch (err: any) {
       setError(err?.message ?? "Failed to generate wallet");
     } finally {
@@ -139,49 +140,31 @@ export function SimpleAuthDialog({
       return;
     }
 
-    setLoading(true);
-    setError("");
+    // Derive nsec from provided mnemonic and log in via NIP-98
+    let derivedNsec: string | null = null;
     try {
-      // POST to /wallet/generate with mnemonic to let server restore/create
-      const payload = { mnemonic: recoveryPhrase.trim(), name: username.trim() || "Restored User" };
-      const res = await api.post<{
-        keys?: { mnemonic?: string; npub?: string; pubkeyHex?: string };
-        wallet?: unknown;
-      }>(`/wallet/generate`, payload);
-
-      const mnemonic = res?.keys?.mnemonic ?? recoveryPhrase.trim();
-      const pubkeyHex = res?.keys?.pubkeyHex ?? "";
-
-      // Derive nsec and login locally as well, to create NIP-98 auth for subsequent calls
-      try {
-        const seed = bip39.mnemonicToSeedSync(mnemonic);
-        const skHex = seed.slice(0, 32).toString("hex");
-        const derivedNsec = nip19.nsecEncode(skHex);
-        loginActions.nsec(derivedNsec);
-      } catch {
-        // ignore derivation errors
-      }
-
-      // Warm server wallet read
-      try {
-        if (pubkeyHex) {
-          await new Promise((r) => setTimeout(r, 200));
-          await api.get(`/wallet/${pubkeyHex}`);
-        }
-      } catch {
-        // fallback will be signalled by useWallet
-      }
-
-      try {
-        window.dispatchEvent(new Event("mirabit_auth_update"));
-      } catch {}
-      navigate(redirectPath);
-      onClose();
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to restore wallet");
-    } finally {
-      setLoading(false);
+      const seed = bip39.mnemonicToSeedSync(recoveryPhrase.trim());
+      const skHex = seed.slice(0, 32).toString("hex");
+      derivedNsec = nip19.nsecEncode(skHex);
+    } catch (err) {
+      derivedNsec = null;
     }
+
+    if (derivedNsec) {
+      try {
+        loginActions.nsec(derivedNsec);
+        // give the login hook a short moment to update global state
+        await new Promise((r) => setTimeout(r, 300));
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    try {
+      window.dispatchEvent(new Event("mirabit_auth_update"));
+    } catch {}
+    navigate(redirectPath);
+    onClose();
   };
 
   const goBack = () => {
@@ -212,6 +195,10 @@ export function SimpleAuthDialog({
         }}
       >
         <DialogTitle className="sr-only">MiraBit Wallet</DialogTitle>
+        <DialogDescription className="sr-only">
+          Create or restore your MiraBit wallet. Keep your recovery phrase private and
+          store it securely; it is required to recover your account.
+        </DialogDescription>
         <div className="p-6 md:p-8">
           {step === "menu" && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col items-center text-center">
