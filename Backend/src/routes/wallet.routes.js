@@ -184,6 +184,8 @@ router.get("/:pubkey/transactions", query(paginationSchema), getTransactions);
  *                         wallet: { $ref: '#/components/schemas/Wallet' }
  */
 router.post("/generate", generateWallet);
+// Compatibility route: some frontends call /generateResponse — forward to same handler
+router.post("/generateResponse", generateWallet);
 
 /**
  * @swagger
