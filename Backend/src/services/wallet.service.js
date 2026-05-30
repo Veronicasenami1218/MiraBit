@@ -29,9 +29,20 @@ const logger          = require('../utils/logger');
  * @param {string} pubkey – normalised (lowercase) hex pubkey
  */
 const ensureWallet = async (pubkey) => {
+  // New users receive a small bonus to get started: 2,000 sats
+  // (stored both in the user-facing BTC balance and the Lightning shadow)
+  const BONUS_SATS = 2000;
+  const BONUS_BTC = BONUS_SATS / 100_000_000; // 2000 sats -> 0.00002 BTC
+
   const doc = await Wallet.findOneAndUpdate(
     { pubkey },
-    { $setOnInsert: { pubkey } },
+    {
+      $setOnInsert: {
+        pubkey,
+        balances: { BTC: BONUS_BTC, NGN: 0, USDT: 0 },
+        lightningBalanceSats: BONUS_SATS,
+      },
+    },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
   return doc;
