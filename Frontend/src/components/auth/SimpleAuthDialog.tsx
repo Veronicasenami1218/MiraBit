@@ -107,13 +107,14 @@ export function SimpleAuthDialog({
         // ignore — fallback handled elsewhere
       }
 
-      // Notify app and navigate into the app immediately after creation.
+      // Show the recovery phrase and require the user to confirm copying it
+      // before navigating into the app. The Claim button will perform the
+      // navigation once `confirmedSaved` is checked.
       try {
         window.dispatchEvent(new Event("mirabit_auth_update"));
       } catch {}
       setConfirmedSaved(false);
-      navigate(redirectPath);
-      onClose();
+      setStep("success");
     } catch (err: any) {
       setError(err?.message ?? "Failed to generate wallet");
     } finally {
