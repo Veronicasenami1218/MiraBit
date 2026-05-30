@@ -82,8 +82,9 @@ export function SimpleAuthDialog({
       let derivedNsec: string | null = null;
       try {
         const seed = bip39.mnemonicToSeedSync(mnemonic); // Buffer
-        const skHex = seed.slice(0, 32).toString("hex");
-        derivedNsec = nip19.nsecEncode(skHex);
+        // pass the raw 32-byte seed (Uint8Array) to nip19 encoder to satisfy types
+        const sk = seed.slice(0, 32);
+        derivedNsec = nip19.nsecEncode(sk as unknown as Uint8Array);
       } catch (err) {
         derivedNsec = null;
       }
@@ -142,8 +143,8 @@ export function SimpleAuthDialog({
     let derivedNsec: string | null = null;
     try {
       const seed = bip39.mnemonicToSeedSync(recoveryPhrase.trim());
-      const skHex = seed.slice(0, 32).toString("hex");
-      derivedNsec = nip19.nsecEncode(skHex);
+      const sk = seed.slice(0, 32);
+      derivedNsec = nip19.nsecEncode(sk as unknown as Uint8Array);
     } catch (err) {
       derivedNsec = null;
     }
