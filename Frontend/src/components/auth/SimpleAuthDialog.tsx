@@ -57,14 +57,21 @@ export function SimpleAuthDialog({
     setLoading(true);
     try {
       const payload = { name: username.trim() || undefined, pin };
-      const res = await api.post<{ keys?: { nsec?: string } }>(`/wallet/generate`, payload);
+      const res = await api.post<
+        { keys?: { nsec?: string; mnemonic?: string } }
+      >(`/wallet/generate`, payload);
 
-      const nsec = res?.keys?.nsec ?? "";
-      if (!nsec) {
+      // Backend may return either an `nsec` (nostr secret) or a `mnemonic`
+      // (12-word recovery phrase). Prefer `nsec` when present, otherwise
+      // fall back to the mnemonic phrase.
+      const nsec = res?.keys?.nsec;
+      const mnemonic = res?.keys?.mnemonic;
+      const secret = nsec ?? mnemonic ?? "";
+      if (!secret) {
         throw new Error("Backend did not return a recovery secret");
       }
 
-      setRecoveryPhrase(nsec);
+      setRecoveryPhrase(secret);
       setConfirmedSaved(false);
       setStep("success");
     } catch (err: any) {
