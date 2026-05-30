@@ -102,14 +102,9 @@ export function useRates() {
     const controller = new AbortController();
 
     (async () => {
-      const fromBackend = await fetchFromBackend(controller.signal);
-      if (isApiConfigured() && !fromBackend) {
-        try {
-          window.dispatchEvent(new CustomEvent("mirabit_rates_fallback", { detail: { message: "Rates backend unavailable" } }));
-        } catch {}
-      }
-
-      const fresh = fromBackend ?? (await fetchFromProxy(controller.signal));
+      const fresh =
+        (await fetchFromBackend(controller.signal)) ??
+        (await fetchFromProxy(controller.signal));
 
       if (!fresh) return; // keep cached / fallback
 
