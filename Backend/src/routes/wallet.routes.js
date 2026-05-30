@@ -180,7 +180,7 @@ router.get("/:pubkey/transactions", query(paginationSchema), getTransactions);
  *                           properties:
  *                             pubkeyHex: { type: string }
  *                             npub: { type: string }
- *                             nsec: { type: string, description: "Recovery key" }
+ *                             mnemonic: { type: string, description: "12-word recovery phrase" }
  *                         wallet: { $ref: '#/components/schemas/Wallet' }
  */
 router.post("/generate", generateWallet);
