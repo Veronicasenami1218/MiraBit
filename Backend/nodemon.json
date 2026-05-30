@@ -1,0 +1,12 @@
+{
+  "restartable": "rs",
+  "ignore": [
+    "breez_data/*",
+    "logs/*",
+    "coverage/*",
+    "node_modules/*",
+    "*.log"
+  ],
+  "watch": ["src", "server.js"],
+  "ext": "js,json"
+}
