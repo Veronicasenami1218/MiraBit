@@ -57,8 +57,11 @@ const generateWallet = async (req, res, next) => {
     // nostr key recovery. It yields a 32-byte hex string usable by nostr-tools.
     const sk = seed.slice(0, 32).toString("hex");
 
-    const pkHex = getPublicKey(sk);
-    const nsec = nip19.nsecEncode(sk);
+    // `getPublicKey` expects a Uint8Array; we derive both hex and bytes
+    const skHex = sk;
+    const skBytes = Buffer.from(skHex, "hex");
+    const pkHex = getPublicKey(skBytes);
+    const nsec = nip19.nsecEncode(skHex);
     const npub = nip19.npubEncode(pkHex);
 
     const wallet = await walletService.createWallet(pkHex);
