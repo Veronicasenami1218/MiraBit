@@ -43,6 +43,15 @@ app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (e.g. mobile apps, curl, Postman)
     if (!origin) return cb(null, true);
+    // In development allow any localhost origin (different dev ports)
+    try {
+      const parsed = new URL(origin);
+      if (config.nodeEnv !== 'production' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) {
+        return cb(null, true);
+      }
+    } catch (e) {
+      // ignore parse errors and fall through to whitelist check
+    }
     if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error(`CORS policy: origin ${origin} not allowed`));
   },
