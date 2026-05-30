@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useSeoMeta } from "@unhead/react";
 import {
   Dialog,
@@ -49,33 +50,8 @@ export default function Dashboard() {
   // CHANGED: Default display currency is now BTC so the 2000 sats show immediately
   const [displayCurrency, setDisplayCurrency] = useState<Currency>("BTC");
 
-  // Initialize profile reactively from local storage
-  const [userData, setUserData] = useState(() => {
-    const stored = localStorage.getItem("mirabit_user");
-    return stored ? JSON.parse(stored) : null;
-  });
-
-  const firstName = userData?.name?.split(" ")[0] || "there";
-
-  // Listen for login/signup storage sync transmissions instantly
-  useEffect(() => {
-    const syncUser = () => {
-      const stored = localStorage.getItem("mirabit_user");
-      if (stored) {
-        setUserData(JSON.parse(stored));
-      }
-    };
-
-    syncUser();
-
-    window.addEventListener("storage", syncUser);
-    window.addEventListener("mirabit_auth_update", syncUser);
-
-    return () => {
-      window.removeEventListener("storage", syncUser);
-      window.removeEventListener("mirabit_auth_update", syncUser);
-    };
-  }, []);
+  const { user, name } = useCurrentUser();
+  const firstName = name?.split(" ")[0] || "there";
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

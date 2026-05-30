@@ -86,9 +86,7 @@ export function OfflineBanner() {
   // local demo data as a temporary fallback.
   useEffect(() => {
     const handler = () => setBackendFallback(true);
-    const ratesHandler = () => setBackendFallback(true);
     window.addEventListener("mirabit_wallet_fallback", handler as EventListener);
-    window.addEventListener("mirabit_rates_fallback", ratesHandler as EventListener);
     return () => window.removeEventListener("mirabit_wallet_fallback", handler as EventListener);
   }, []);
 

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const NAV_ITEMS = [
   { to: "/app", label: "Home", icon: Home, exact: true },
@@ -40,20 +41,16 @@ export function AppShell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
-  // 1. Check local storage
-  const hasUser = localStorage.getItem("mirabit_user");
+  const { user } = useCurrentUser();
 
-  // 2. Strict Redirect: If no user, bounce them to the landing page immediately
+  // Redirect to landing if no logged-in nostr user is present
   useEffect(() => {
-    if (!hasUser) {
+    if (!user) {
       navigate("/?login=true", { replace: true });
     }
-  }, [hasUser, navigate]);
+  }, [user, navigate]);
 
-  // 3. Prevent the app shell from flashing on the screen while redirecting
-  if (!hasUser) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
