@@ -8,11 +8,17 @@
  * req.nostrPubkey (set by requireNostrAuth middleware).
  */
 
-'use strict';
+"use strict";
 
-const walletService = require('../services/wallet.service');
-const { ok, created, notFound, badRequest, forbidden } = require('../utils/response');
-const logger = require('../utils/logger');
+const walletService = require("../services/wallet.service");
+const {
+  ok,
+  created,
+  notFound,
+  badRequest,
+  forbidden,
+} = require("../utils/response");
+const logger = require("../utils/logger");
 
 /**
  * Guard that returns true if the authenticated pubkey is allowed to
@@ -20,36 +26,76 @@ const logger = require('../utils/logger');
  * exact match – a user can only touch their own wallet.
  */
 const assertSelf = (req, res, pubkey) => {
-  if (req.nostrPubkey && req.nostrPubkey.toLowerCase() === pubkey.toLowerCase()) {
+  if (
+    req.nostrPubkey &&
+    req.nostrPubkey.toLowerCase() === pubkey.toLowerCase()
+  ) {
     return true;
   }
-  forbidden(res, 'You may only modify your own wallet');
+  forbidden(res, "You may only modify your own wallet");
   return false;
+};
+
+// ── POST /wallet/generate ────────────────────────────────────────────────────
+// Generates a new Nostr keypair, creates a wallet, and returns the recovery key
+const { generateSecretKey, getPublicKey, nip19 } = require("nostr-tools");
+
+const generateWallet = async (req, res, next) => {
+  try {
+    const sk = generateSecretKey();
+    const pkHex = getPublicKey(sk);
+    const nsec = nip19.nsecEncode(sk);
+    const npub = nip19.npubEncode(pkHex);
+
+    const wallet = await walletService.createWallet(pkHex);
+
+    return created(res, "Wallet and keys generated successfully", {
+      keys: {
+        pubkeyHex: pkHex,
+        npub,
+        nsec, // The user's recovery key
+      },
+      wallet,
+    });
+  } catch (err) {
+    logger.error("generateWallet error:", err);
+    next(err);
+  }
 };
 
 // ── GET /wallet/:pubkey ──────────────────────────────────────────────────────
 const getWallet = async (req, res, next) => {
   try {
     const wallet = await walletService.getWalletByPubkey(req.params.pubkey);
-    if (!wallet) return notFound(res, `Wallet not found for pubkey: ${req.params.pubkey}`);
-    return ok(res, 'Wallet retrieved successfully', wallet);
-  } catch (err) { logger.error('getWallet error:', err); next(err); }
+    if (!wallet)
+      return notFound(res, `Wallet not found for pubkey: ${req.params.pubkey}`);
+    return ok(res, "Wallet retrieved successfully", wallet);
+  } catch (err) {
+    logger.error("getWallet error:", err);
+    next(err);
+  }
 };
 
 // ── POST /wallet ─────────────────────────────────────────────────────────────
 const createWallet = async (req, res, next) => {
   try {
     const wallet = await walletService.createWallet(req.nostrPubkey);
-    return created(res, 'Wallet created successfully', wallet);
-  } catch (err) { logger.error('createWallet error:', err); next(err); }
+    return created(res, "Wallet created successfully", wallet);
+  } catch (err) {
+    logger.error("createWallet error:", err);
+    next(err);
+  }
 };
 
 // ── GET /wallet/:pubkey/balance ──────────────────────────────────────────────
 const getBalance = async (req, res, next) => {
   try {
     const balance = await walletService.getBalance(req.params.pubkey);
-    return ok(res, 'Balance retrieved', balance);
-  } catch (err) { logger.error('getBalance error:', err); next(err); }
+    return ok(res, "Balance retrieved", balance);
+  } catch (err) {
+    logger.error("getBalance error:", err);
+    next(err);
+  }
 };
 
 // ── GET /wallet/:pubkey/transactions ─────────────────────────────────────────
@@ -57,17 +103,20 @@ const getTransactions = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, type } = req.query;
     const result = await walletService.getTransactions(req.params.pubkey, {
-      page:  parseInt(page, 10),
+      page: parseInt(page, 10),
       limit: Math.min(parseInt(limit, 10), 100),
-      type:  type || null,
+      type: type || null,
     });
-    return ok(res, 'Transactions retrieved', result.transactions, {
-      page:    result.page,
-      limit:   result.limit,
-      total:   result.total,
+    return ok(res, "Transactions retrieved", result.transactions, {
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
       hasMore: result.hasMore,
     });
-  } catch (err) { logger.error('getTransactions error:', err); next(err); }
+  } catch (err) {
+    logger.error("getTransactions error:", err);
+    next(err);
+  }
 };
 
 // ── POST /wallet/:pubkey/deposit ─────────────────────────────────────────────
@@ -77,12 +126,16 @@ const deposit = async (req, res, next) => {
     if (!assertSelf(req, res, req.params.pubkey)) return;
     const { currency, amount, note } = req.body;
     const result = await walletService.deposit({
-      pubkey: req.params.pubkey, currency, amount, note,
+      pubkey: req.params.pubkey,
+      currency,
+      amount,
+      note,
     });
-    return created(res, 'Deposit successful', result);
+    return created(res, "Deposit successful", result);
   } catch (err) {
-    logger.error('deposit error:', err);
-    if (/Insufficient|must be/i.test(err.message)) return badRequest(res, err.message);
+    logger.error("deposit error:", err);
+    if (/Insufficient|must be/i.test(err.message))
+      return badRequest(res, err.message);
     next(err);
   }
 };
@@ -94,12 +147,16 @@ const convertFunds = async (req, res, next) => {
     if (!assertSelf(req, res, req.params.pubkey)) return;
     const { fromCurrency, toCurrency, amount } = req.body;
     const result = await walletService.convertFunds({
-      pubkey: req.params.pubkey, fromCurrency, toCurrency, amount,
+      pubkey: req.params.pubkey,
+      fromCurrency,
+      toCurrency,
+      amount,
     });
-    return ok(res, 'Funds converted', result);
+    return ok(res, "Funds converted", result);
   } catch (err) {
-    logger.error('convertFunds error:', err);
-    if (/Insufficient|must|differ/i.test(err.message)) return badRequest(res, err.message);
+    logger.error("convertFunds error:", err);
+    if (/Insufficient|must|differ/i.test(err.message))
+      return badRequest(res, err.message);
     next(err);
   }
 };
@@ -111,12 +168,16 @@ const saveToBtc = async (req, res, next) => {
     if (!assertSelf(req, res, req.params.pubkey)) return;
     const { sourceCurrency, amount, goalId } = req.body;
     const result = await walletService.saveToBtc({
-      pubkey: req.params.pubkey, sourceCurrency, amount, goalId,
+      pubkey: req.params.pubkey,
+      sourceCurrency,
+      amount,
+      goalId,
     });
-    return created(res, 'Saved to BTC', result);
+    return created(res, "Saved to BTC", result);
   } catch (err) {
-    logger.error('saveToBtc error:', err);
-    if (/Insufficient|must/i.test(err.message)) return badRequest(res, err.message);
+    logger.error("saveToBtc error:", err);
+    if (/Insufficient|must/i.test(err.message))
+      return badRequest(res, err.message);
     next(err);
   }
 };
@@ -132,17 +193,26 @@ const reward = async (req, res, next) => {
     if (!assertSelf(req, res, req.params.pubkey)) return;
     const { amountBtc, note } = req.body;
     const result = await walletService.reward({
-      pubkey: req.params.pubkey, amountBtc, note,
+      pubkey: req.params.pubkey,
+      amountBtc,
+      note,
     });
-    return created(res, 'Reward credited', result);
+    return created(res, "Reward credited", result);
   } catch (err) {
-    logger.error('reward error:', err);
+    logger.error("reward error:", err);
     if (/must/i.test(err.message)) return badRequest(res, err.message);
     next(err);
   }
 };
 
 module.exports = {
-  getWallet, createWallet, getBalance, getTransactions,
-  deposit, convertFunds, saveToBtc, reward,
+  generateWallet,
+  getWallet,
+  createWallet,
+  getBalance,
+  getTransactions,
+  deposit,
+  convertFunds,
+  saveToBtc,
+  reward,
 };

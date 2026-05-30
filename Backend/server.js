@@ -6,15 +6,19 @@
  * All Express configuration lives in src/app.js.
  */
 
-'use strict';
+"use strict";
 
-require('dotenv').config();
+require("dotenv").config();
 
-const http = require('http');
-const app  = require('./src/app');
-const logger = require('./src/utils/logger');
-const { connectDatabase, disconnectDatabase } = require('./src/config/database');
-const conversionService = require('./src/services/conversion.service');
+const http = require("http");
+const app = require("./src/app");
+const logger = require("./src/utils/logger");
+const {
+  connectDatabase,
+  disconnectDatabase,
+} = require("./src/config/database");
+const conversionService = require("./src/services/conversion.service");
+const breezService = require("./src/services/breez.service");
 
 const PORT = process.env.PORT || 5000;
 
@@ -24,15 +28,21 @@ const server = http.createServer(app);
 const start = async () => {
   try {
     await connectDatabase();
+    // Initialize Lightning network SDK
+    await breezService.init();
     // Warm the exchange-rate cache from the persisted snapshot (best-effort)
     await conversionService.hydrateCacheFromDb().catch(() => {});
 
     server.listen(PORT, () => {
-      logger.info(`🚀 MiraBit backend running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
-      logger.info(`📡 API base: http://localhost:${PORT}/api/${process.env.API_VERSION || 'v1'}`);
+      logger.info(
+        `🚀 MiraBit backend running on port ${PORT} [${process.env.NODE_ENV || "development"}]`,
+      );
+      logger.info(
+        `📡 API base: http://localhost:${PORT}/api/${process.env.API_VERSION || "v1"}`,
+      );
     });
   } catch (err) {
-    logger.error('Fatal startup error – cannot continue:', err);
+    logger.error("Fatal startup error – cannot continue:", err);
     process.exit(1);
   }
 };
@@ -43,28 +53,29 @@ start();
 const shutdown = (signal) => {
   logger.info(`${signal} received – shutting down gracefully…`);
   server.close(async () => {
-    logger.info('HTTP server closed.');
+    logger.info("HTTP server closed.");
+    await breezService.disconnect();
     await disconnectDatabase();
     process.exit(0);
   });
 
   // Force-kill after 10 seconds if connections remain open
   setTimeout(() => {
-    logger.error('Forced shutdown after timeout.');
+    logger.error("Forced shutdown after timeout.");
     process.exit(1);
   }, 10_000);
 };
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 // ── Unhandled Rejection / Exception Guards ───────────────────────────────────
-process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled Promise Rejection:', reason);
+process.on("unhandledRejection", (reason) => {
+  logger.error("Unhandled Promise Rejection:", reason);
 });
 
-process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception:', err);
+process.on("uncaughtException", (err) => {
+  logger.error("Uncaught Exception:", err);
   process.exit(1);
 });
 

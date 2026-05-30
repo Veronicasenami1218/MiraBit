@@ -14,52 +14,66 @@
  *   POST   /api/v1/wallet/:pubkey/reward         – credit BTC reward
  */
 
-'use strict';
+"use strict";
 
-const { Router } = require('express');
-const Joi = require('joi');
+const { Router } = require("express");
+const Joi = require("joi");
 
 const {
-  getWallet, createWallet, getBalance, getTransactions,
-  deposit, convertFunds, saveToBtc, reward,
-} = require('../controllers/wallet.controller');
+  generateWallet,
+  getWallet,
+  createWallet,
+  getBalance,
+  getTransactions,
+  deposit,
+  convertFunds,
+  saveToBtc,
+  reward,
+} = require("../controllers/wallet.controller");
 
-const { requireNostrAuth } = require('../middleware/auth.middleware');
-const { body, query }      = require('../middleware/validator');
+const { requireNostrAuth } = require("../middleware/auth.middleware");
+const { body, query } = require("../middleware/validator");
 
 const router = Router();
 
 // ── Schemas ────────────────────────────────────────────────────────────────────
-const CURRENCY = Joi.string().valid('BTC', 'NGN', 'USDT');
-const TX_TYPE  = Joi.string().valid('save', 'convert', 'pay', 'receive', 'learn-reward', 'all');
+const CURRENCY = Joi.string().valid("BTC", "NGN", "USDT");
+const TX_TYPE = Joi.string().valid(
+  "save",
+  "convert",
+  "pay",
+  "receive",
+  "learn-reward",
+  "all",
+);
 
 const paginationSchema = Joi.object({
-  page:  Joi.number().integer().min(1).default(1),
+  page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
-  type:  TX_TYPE.optional(),
+  type: TX_TYPE.optional(),
 });
 
 const depositSchema = Joi.object({
   currency: CURRENCY.required(),
-  amount:   Joi.number().positive().required(),
-  note:     Joi.string().max(500).optional(),
+  amount: Joi.number().positive().required(),
+  note: Joi.string().max(500).optional(),
 });
 
 const convertSchema = Joi.object({
   fromCurrency: CURRENCY.required(),
-  toCurrency:   CURRENCY.required(),
-  amount:       Joi.number().positive().required(),
+  toCurrency: CURRENCY.required(),
+  amount: Joi.number().positive().required(),
 });
 
 const saveSchema = Joi.object({
   sourceCurrency: CURRENCY.required(),
-  amount:         Joi.number().positive().required(),
-  goalId:         Joi.string().hex().length(24).optional(),
+  amount: Joi.number().positive().required(),
+  goalId: Joi.string().hex().length(24).optional(),
 });
 
 const rewardSchema = Joi.object({
   amountBtc: Joi.number().positive().max(1).required(), // hard cap 1 BTC per reward
-  note:      Joi.string().max(500).optional(),
+  note: Joi.string().max(500).optional(),
 });
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
@@ -83,7 +97,7 @@ const rewardSchema = Joi.object({
  *                 - properties: { data: { $ref: '#/components/schemas/Wallet' } }
  *       404: { $ref: '#/components/responses/NotFound' }
  */
-router.get('/:pubkey', getWallet);
+router.get("/:pubkey", getWallet);
 
 /**
  * @swagger
@@ -103,7 +117,7 @@ router.get('/:pubkey', getWallet);
  *                 - $ref: '#/components/schemas/SuccessEnvelope'
  *                 - properties: { data: { $ref: '#/components/schemas/WalletBalance' } }
  */
-router.get('/:pubkey/balance', getBalance);
+router.get("/:pubkey/balance", getBalance);
 
 /**
  * @swagger
@@ -141,7 +155,35 @@ router.get('/:pubkey/balance', getBalance);
  *                         hasMore: { type: boolean }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.get('/:pubkey/transactions', query(paginationSchema), getTransactions);
+router.get("/:pubkey/transactions", query(paginationSchema), getTransactions);
+
+/**
+ * @swagger
+ * /wallet/generate:
+ *   post:
+ *     tags: [Wallet]
+ *     summary: Generate a new Nostr keypair and create a wallet (no auth required)
+ *     responses:
+ *       201:
+ *         description: Wallet created and keys generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessEnvelope'
+ *                 - properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         keys:
+ *                           type: object
+ *                           properties:
+ *                             pubkeyHex: { type: string }
+ *                             npub: { type: string }
+ *                             nsec: { type: string, description: "Recovery key" }
+ *                         wallet: { $ref: '#/components/schemas/Wallet' }
+ */
+router.post("/generate", generateWallet);
 
 /**
  * @swagger
@@ -161,7 +203,7 @@ router.get('/:pubkey/transactions', query(paginationSchema), getTransactions);
  *                 - properties: { data: { $ref: '#/components/schemas/Wallet' } }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.post('/', requireNostrAuth, createWallet);
+router.post("/", requireNostrAuth, createWallet);
 
 /**
  * @swagger
@@ -202,7 +244,7 @@ router.post('/', requireNostrAuth, createWallet);
  *       403: { $ref: '#/components/responses/Forbidden' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.post('/:pubkey/deposit', requireNostrAuth, body(depositSchema), deposit);
+router.post("/:pubkey/deposit", requireNostrAuth, body(depositSchema), deposit);
 
 /**
  * @swagger
@@ -242,7 +284,12 @@ router.post('/:pubkey/deposit', requireNostrAuth, body(depositSchema), deposit);
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.post('/:pubkey/convert', requireNostrAuth, body(convertSchema), convertFunds);
+router.post(
+  "/:pubkey/convert",
+  requireNostrAuth,
+  body(convertSchema),
+  convertFunds,
+);
 
 /**
  * @swagger
@@ -283,7 +330,12 @@ router.post('/:pubkey/convert', requireNostrAuth, body(convertSchema), convertFu
  *       401: { $ref: '#/components/responses/Unauthorized' }
  *       422: { $ref: '#/components/responses/ValidationError' }
  */
-router.post('/:pubkey/save-to-btc', requireNostrAuth, body(saveSchema), saveToBtc);
+router.post(
+  "/:pubkey/save-to-btc",
+  requireNostrAuth,
+  body(saveSchema),
+  saveToBtc,
+);
 
 /**
  * @swagger
@@ -321,6 +373,6 @@ router.post('/:pubkey/save-to-btc', requireNostrAuth, body(saveSchema), saveToBt
  *       400: { $ref: '#/components/responses/BadRequest' }
  *       401: { $ref: '#/components/responses/Unauthorized' }
  */
-router.post('/:pubkey/reward', requireNostrAuth, body(rewardSchema), reward);
+router.post("/:pubkey/reward", requireNostrAuth, body(rewardSchema), reward);
 
 module.exports = router;
