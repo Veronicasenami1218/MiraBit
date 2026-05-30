@@ -43,7 +43,6 @@ export function SimpleAuthDialog({
   const [showPin, setShowPin] = useState(false);
   const [recoveryPhrase, setRecoveryPhrase] = useState("");
   const [loading, setLoading] = useState(false);
-  const [confirmedSaved, setConfirmedSaved] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const api = useApi();
@@ -113,7 +112,6 @@ export function SimpleAuthDialog({
       try {
         window.dispatchEvent(new Event("mirabit_auth_update"));
       } catch {}
-      setConfirmedSaved(false);
       navigate(redirectPath);
       onClose();
     } catch (err: any) {
@@ -127,9 +125,9 @@ export function SimpleAuthDialog({
     // User should already be logged in via NIP-98 (derived nsec). Just
     // navigate into the app and close the dialog. Notify listeners that
     // auth state may have changed so the UI can refresh wallet data.
-    try {
-      window.dispatchEvent(new Event("mirabit_auth_update"));
-    } catch {}
+      try {
+        window.dispatchEvent(new Event("mirabit_auth_update"));
+      } catch {}
     navigate(redirectPath);
     onClose();
   };
@@ -399,20 +397,10 @@ export function SimpleAuthDialog({
                     </div>
                   </div>
 
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={confirmedSaved}
-                      onChange={(e) => setConfirmedSaved(e.target.checked)}
-                    />
-                    <span>I have copied and securely stored this recovery key.</span>
-                  </label>
-
                   <div className="w-full pt-2">
                     <Button
                       onClick={handleAcceptBonus}
-                      disabled={!confirmedSaved}
-                      className="w-full h-14 text-base font-bold rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-orange-500/25 transition-all active:scale-95 disabled:opacity-50"
+                      className="w-full h-14 text-base font-bold rounded-xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg hover:shadow-orange-500/25 transition-all active:scale-95"
                     >
                       Claim Bonus & Enter App
                     </Button>
