@@ -13,12 +13,12 @@
  * build step before using this service.
  */
 
-'use strict';
+"use strict";
 
-const logger = require('../utils/logger');
-const { getBreezConfig, validateBreezConfig } = require('../config/breez');
+const logger = require("../utils/logger");
+const { getBreezConfig, validateBreezConfig } = require("../config/breez");
 
-let sdk = null;        // Singleton SDK instance
+let sdk = null; // Singleton SDK instance
 let isInitialised = false;
 
 /**
@@ -27,9 +27,11 @@ let isInitialised = false;
  */
 const loadSdk = () => {
   try {
-    return require('@breeztech/breez-sdk-liquid');
+    return require("@breeztech/breez-sdk-liquid");
   } catch (err) {
-    logger.warn('Breez SDK not available. Install @breeztech/breez-sdk-liquid and ensure native bindings compile.');
+    logger.warn(
+      "Breez SDK not available. Install @breeztech/breez-sdk-liquid and ensure native bindings compile.",
+    );
     logger.warn(err.message);
     return null;
   }
@@ -56,28 +58,36 @@ const init = async () => {
 
   try {
     const config = getBreezConfig();
-    logger.info('Initialising Breez SDK Liquid…');
+    logger.info("Initialising Breez SDK Liquid…");
+
+    // Use the SDK-provided default config (includes required explorers, timeouts, etc.)
+    // and override workingDir if the app specifies one.
+    const sdkConfig = BreezSdk.defaultConfig(config.network, config.apiKey);
+    // Ensure workingDir from our env is respected
+    sdkConfig.workingDir = config.workingDir || sdkConfig.workingDir;
 
     sdk = await BreezSdk.connect({
-      config: {
-        network:    config.network === 'mainnet'
-                      ? BreezSdk.LiquidNetwork.MAINNET
-                      : BreezSdk.LiquidNetwork.TESTNET,
-        workingDir: config.workingDir,
-      },
+      config: sdkConfig,
       mnemonic: config.mnemonic,
     });
 
-    // Register event listener for payment updates
-    sdk.addEventListener((event) => {
-      logger.info('Breez SDK event:', { type: event.type });
-    });
+    // Register event listener for payment updates. The SDK expects an object
+    // with an `onEvent` method (not a bare function).
+    try {
+      sdk.addEventListener({
+        onEvent: (event) => {
+          logger.info("Breez SDK event:", { type: event.type });
+        },
+      });
+    } catch (err) {
+      logger.warn('Breez SDK: failed to register event listener', err.message || err);
+    }
 
     isInitialised = true;
-    logger.info('✅ Breez SDK Liquid initialised successfully');
+    logger.info("✅ Breez SDK Liquid initialised successfully");
     return sdk;
   } catch (err) {
-    logger.error('Breez SDK initialisation failed:', err.message);
+    logger.error("Breez SDK initialisation failed:", err);
     return null;
   }
 };
@@ -95,7 +105,7 @@ const getInstance = () => sdk;
  */
 const getWalletInfo = async () => {
   const instance = getInstance();
-  if (!instance) throw new Error('Breez SDK is not initialised.');
+  if (!instance) throw new Error("Breez SDK is not initialised.");
   return instance.getInfo();
 };
 
@@ -108,14 +118,14 @@ const getWalletInfo = async () => {
  */
 const sendPayment = async ({ invoice, amountSats }) => {
   const instance = getInstance();
-  if (!instance) throw new Error('Breez SDK is not initialised.');
+  if (!instance) throw new Error("Breez SDK is not initialised.");
 
   const prepareResponse = await instance.prepareSendPayment({
     destination: invoice,
     ...(amountSats ? { amountSat: amountSats } : {}),
   });
 
-  logger.info('Breez: sending payment', { feeSat: prepareResponse.feesSat });
+  logger.info("Breez: sending payment", { feeSat: prepareResponse.feesSat });
   return instance.sendPayment({ prepareResponse });
 };
 
@@ -129,14 +139,17 @@ const sendPayment = async ({ invoice, amountSats }) => {
  */
 const receivePayment = async ({ amountSats, description, expirySeconds }) => {
   const instance = getInstance();
-  if (!instance) throw new Error('Breez SDK is not initialised.');
+  if (!instance) throw new Error("Breez SDK is not initialised.");
 
   const prepareResponse = await instance.prepareReceivePayment({
-    paymentMethod: 'lightning',
-    amountSat:     amountSats,
+    paymentMethod: "lightning",
+    amountSat: amountSats,
   });
 
-  logger.info('Breez: creating invoice', { amountSats, feeSat: prepareResponse.feesSat });
+  logger.info("Breez: creating invoice", {
+    amountSats,
+    feeSat: prepareResponse.feesSat,
+  });
 
   return instance.receivePayment({
     prepareResponse,
@@ -150,7 +163,7 @@ const receivePayment = async ({ amountSats, description, expirySeconds }) => {
  */
 const listPayments = async () => {
   const instance = getInstance();
-  if (!instance) throw new Error('Breez SDK is not initialised.');
+  if (!instance) throw new Error("Breez SDK is not initialised.");
   return instance.listPayments({});
 };
 
@@ -161,9 +174,9 @@ const disconnect = async () => {
   if (sdk && isInitialised) {
     try {
       await sdk.disconnect();
-      logger.info('Breez SDK disconnected.');
+      logger.info("Breez SDK disconnected.");
     } catch (err) {
-      logger.warn('Breez SDK disconnect error:', err.message);
+      logger.warn("Breez SDK disconnect error:", err.message);
     } finally {
       sdk = null;
       isInitialised = false;
@@ -171,4 +184,12 @@ const disconnect = async () => {
   }
 };
 
-module.exports = { init, getInstance, getWalletInfo, sendPayment, receivePayment, listPayments, disconnect };
+module.exports = {
+  init,
+  getInstance,
+  getWalletInfo,
+  sendPayment,
+  receivePayment,
+  listPayments,
+  disconnect,
+};
