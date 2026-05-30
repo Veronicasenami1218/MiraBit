@@ -183,22 +183,26 @@ function StepCountUp({
 export default function Landing() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authRedirectTo, setAuthRedirectTo] = useState("/app");
+  const [scrolled, setScrolled] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Helper to open auth modal and remember where the user wanted to go
   const handleOpenAuth = (path = "/app") => {
     setAuthRedirectTo(path);
     setIsAuthOpen(true);
   };
 
-  // Auto-open modal if URL contains ?login=true (bounced from a protected page)
   useEffect(() => {
     if (searchParams.get("login") === "true") {
       handleOpenAuth("/app");
-      // Clean up the URL so it looks clean again
       setSearchParams({});
     }
   }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const heroCard = useInView();
   const problems = useInView();
@@ -218,18 +222,35 @@ export default function Landing() {
       className={`min-h-screen bg-background text-foreground transition-[filter] duration-500 ${isAuthOpen ? "blur-md brightness-75" : ""}`}
     >
       {/* Header */}
-      <header className="absolute top-0 inset-x-0 z-20">
+      <header
+        className={`fixed top-0 inset-x-0 z-30 transition-all duration-300 ${
+          scrolled
+            ? "bg-background/95 backdrop-blur-md border-b shadow-sm"
+            : "bg-transparent border-b border-transparent"
+        }`}
+      >
         <div className="container max-w-6xl flex items-center justify-between h-16">
           <Logo />
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              className="hidden sm:inline-flex"
+              className={`hidden sm:inline-flex transition-colors duration-300 ${
+                !scrolled
+                  ? "text-white hover:text-white hover:bg-orange-600"
+                  : ""
+              }`}
               onClick={() => handleOpenAuth("/app/learn")}
             >
               Learn
             </Button>
-            <Button onClick={() => handleOpenAuth("/app")}>
+            <Button
+              className={
+                !scrolled
+                  ? "bg-white text-orange-600 hover:bg-white/90 border-0"
+                  : ""
+              }
+              onClick={() => handleOpenAuth("/app")}
+            >
               Open app <ArrowRight className="h-4 w-4 ml-1.5" />
             </Button>
           </div>
@@ -536,10 +557,7 @@ export default function Landing() {
                   }
                 `}
               >
-                {/* Growing left accent border on hover */}
                 <div className="absolute left-0 top-0 w-[3px] bg-primary rounded-l-2xl h-0 group-hover:h-full transition-[height] duration-300 ease-out" />
-
-                {/* Step number — counts up, brightens on hover */}
                 <div
                   className="text-5xl font-extrabold tabular-nums
                     text-primary/30 group-hover:text-primary
@@ -553,7 +571,6 @@ export default function Landing() {
                     delay={i * 200}
                   />
                 </div>
-
                 <h3 className="mt-3 text-xl font-bold">{s.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
               </div>
@@ -627,8 +644,6 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      {/* CTA */}
-      {/* CTA */}
       <section className="container max-w-5xl pb-24">
         <div
           ref={cta.ref}
@@ -637,7 +652,6 @@ export default function Landing() {
           `}
           style={{ transitionDelay: cta.inView ? "300ms" : "0ms" }}
         >
-          {/* Top Half: Vibrant Gradient */}
           <div
             className="px-6 py-12 md:p-16 text-center text-white relative"
             style={{
@@ -646,11 +660,9 @@ export default function Landing() {
             }}
           >
             <div className="relative z-10">
-              {/* UPDATED: Solid white background with orange text */}
               <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider mb-6 shadow-sm text-orange-600">
                 <Sparkles className="h-3.5 w-3.5" /> Takes under 60 seconds
               </div>
-
               <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
                 Take control of your money.
               </h2>
@@ -662,7 +674,6 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Bottom Half: Clean White Card */}
           <div className="bg-card p-8 md:p-10 flex flex-col items-center justify-center border-t border-orange-500/10">
             <Button
               size="lg"
@@ -778,7 +789,7 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* Auth Dialog directly on the landing page */}
+      {/* Auth Dialog */}
       <SimpleAuthDialog
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
